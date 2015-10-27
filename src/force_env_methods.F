@@ -25,6 +25,11 @@ MODULE force_env_methods
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_vsite,                ONLY: vsite_force_control
   USE cp_iter_types,                   ONLY: cp_iteration_info_copy_iter
+  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_rm_default_logger,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
                                              low_print_level
@@ -117,7 +122,6 @@ MODULE force_env_methods
                                              virial_release,&
                                              virial_type,&
                                              zero_virial
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

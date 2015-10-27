@@ -16,15 +16,11 @@
 !> \author Matthias Krack (12.02.2001)
 ! *****************************************************************************
 MODULE termination
-
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              int_8
-  USE machine,                         ONLY: default_output_unit,&
-                                             m_flush_internal,&
-                                             m_memory
-  USE message_passing,                 ONLY: mp_abort
-  USE timings,                         ONLY: print_stack
+  USE machine,                         ONLY: m_memory
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 
@@ -32,18 +28,8 @@ MODULE termination
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'termination'
 
-  INTEGER :: error_unit = default_output_unit
-
-  PUBLIC :: print_message,&
-            set_error_unit,&
-            stop_memory,&
-            stop_read,&
-            stop_write
-
-  INTERFACE stop_memory
-    MODULE PROCEDURE stop_allocate,&
-                     stop_deallocate
-  END INTERFACE
+  PUBLIC :: print_message
+  PUBLIC :: stop_memory
 
 CONTAINS
 
@@ -204,23 +190,6 @@ CONTAINS
   END SUBROUTINE print_message
 
 ! *****************************************************************************
-!> \brief Initialise the output unit number for error messages.
-!> \param lunit ...
-!> \par History
-!>      none
-!> \author JGH
-! *****************************************************************************
-  SUBROUTINE set_error_unit(lunit)
-    INTEGER, INTENT(IN)                      :: lunit
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_error_unit', &
-      routineP = moduleN//':'//routineN
-
-    error_unit = lunit
-
-  END SUBROUTINE set_error_unit
-
-! *****************************************************************************
 !> \brief The memory allocation for a data object failed. Print an error
 !>        message and stop the program execution.
 !> \param routineN ...
@@ -228,7 +197,6 @@ CONTAINS
 !> \param line_number ...
 !> \param object ...
 !> \param memory ...
-!> \param para_env ...
 !> \par History
 !>      - CP2K by JGH 21.08.2000
 !>      - Revised (16.02.2011,MK)
@@ -241,16 +209,15 @@ CONTAINS
 !>      memory     : Size of the data object in bytes. If zero no size is
 !>                   printed.
 ! *****************************************************************************
-  SUBROUTINE stop_allocate(routineN,moduleN,line_number,object,memory,para_env)
+  SUBROUTINE stop_memory(routineN,moduleN,line_number,object,memory)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: object
     INTEGER, INTENT(IN)                      :: memory
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
 
     CHARACTER(LEN=default_path_length)       :: message
+    CHARACTER(len=default_string_length)     :: location
     INTEGER(KIND=int_8)                      :: total_memory
 
     CALL m_memory(total_memory)
@@ -271,220 +238,12 @@ CONTAINS
         total_memory," KB."
     END IF
 
-    IF (PRESENT(para_env)) THEN
-      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message),&
-                        para_env)
-    ELSE
-      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
-    END IF
+    WRITE (location, FMT='(A,I6)') TRIM(routineN)//&
+                                   " (MODULE "//TRIM(moduleN)//")"//&
+                                   ":",line_number
 
-  END SUBROUTINE stop_allocate
+    CALL cp_abort(location, message)
 
-! *****************************************************************************
-!> \brief The memory deallocation for a data object failed. Print an error
-!>        message and stop the program execution.
-!> \param routineN ...
-!> \param moduleN ...
-!> \param line_number ...
-!> \param object ...
-!> \param para_env ...
-!> \par History
-!>      CP2K by JGH 21.08.2000
-!>      - Revised (16.02.2011,MK)
-!> \author Matthias Krack (20.10.1999,MK)
-!> \note
-!>      routineN   : Name of the calling routine
-!>      moduleN    : Name of the calling module including the calling routine
-!>      line_number: Code line number in the module
-!>      object     : Name of the data object for which the deallocation failed
-! *****************************************************************************
-  SUBROUTINE stop_deallocate(routineN,moduleN,line_number,object,para_env)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
-    INTEGER, INTENT(IN)                      :: line_number
-    CHARACTER(LEN=*), INTENT(IN)             :: object
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
-
-    CHARACTER(LEN=default_path_length)       :: message
-
-    message = "The memory deallocation for the data object <"//TRIM(object)//&
-              "> failed"
-
-    IF (PRESENT(para_env)) THEN
-      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message),&
-                        para_env)
-    ELSE
-      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
-    END IF
-
-  END SUBROUTINE stop_deallocate
-
-! *****************************************************************************
-!> \brief Stop the program run and write an error message.
-!> \param routineN ...
-!> \param moduleN ...
-!> \param line_number ...
-!> \param error_message ...
-!> \param para_env ...
-!> \par History
-!>      Translated to Fortran 90 (07.10.99, MK)
-!> \author Matthias Krack (28.08.1996,MK)
-!> \note
-!>      routine: Name of the calling routine
-! *****************************************************************************
-  SUBROUTINE stop_program(routineN,moduleN,line_number,error_message,&
-                          para_env)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
-    INTEGER, INTENT(IN)                      :: line_number
-    CHARACTER(LEN=*), INTENT(IN)             :: error_message
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
-
-    CHARACTER(LEN=3*default_path_length)     :: message
-    LOGICAL                                  :: ionode
-
-    IF (PRESENT(para_env)) THEN
-      ionode = para_env%ionode
-    ELSE
-      ionode = .TRUE.
-    END IF
-
-    ! Print the error message, we do this only on the ionode to limit output....
-    ! but this might mean error messages are not seen if only a non-ionode errors out
-
-    IF (ionode) THEN
-      message = "ERROR in "//TRIM(routineN)//&
-                " (MODULE "//TRIM(moduleN)//")"
-      CALL print_message(message,error_unit,2,2,0)
-      CALL print_message(error_message,error_unit,1,1,0)
-      WRITE (UNIT=message,FMT="(A,I0,A)")&
-        "Program stopped at line number ",line_number,&
-        " of MODULE "//TRIM(moduleN)
-      CALL print_message(message,error_unit,1,1,0)
-      CALL print_stack(error_unit)
-      CALL m_flush_internal(default_output_unit)
-      CALL m_flush_internal(error_unit)
-    END IF
-
-    ! make sure we abort, even if not called by ionode
-    CALL mp_abort()
-
-  END SUBROUTINE stop_program
-
-! *****************************************************************************
-!> \brief Print an error message and stop the program execution in case of a
-!>        read error.
-!> \param routineN ...
-!> \param moduleN ...
-!> \param line_number ...
-!> \param object ...
-!> \param unit_number ...
-!> \param para_env ...
-!> \par History
-!>      - Creation (15.02.2011,MK)
-!> \author Matthias Krack (MK)
-!> \note
-!>      routineN   : Name of the calling routine
-!>      moduleN    : Name of the calling module including the calling routine
-!>      object     : Name of the data object for which I/O operation failed
-!>      unit_number: Logical unit number of the file read from
-! *****************************************************************************
-  SUBROUTINE stop_read(routineN,moduleN,line_number,object,unit_number,&
-                       para_env)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
-    INTEGER, INTENT(IN)                      :: line_number
-    CHARACTER(LEN=*), INTENT(IN)             :: object
-    INTEGER, INTENT(IN)                      :: unit_number
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
-
-    CHARACTER(LEN=2*default_path_length)     :: message
-    CHARACTER(LEN=default_path_length)       :: file_name
-    LOGICAL                                  :: file_exists
-
-    IF (unit_number>=0) THEN
-       INQUIRE (UNIT=unit_number,EXIST=file_exists)
-    ELSE
-       file_exists=.FALSE.
-    ENDIF
-    IF (file_exists) THEN
-       INQUIRE (UNIT=unit_number,NAME=file_name)
-       WRITE (UNIT=message,FMT="(A)")&
-         "An error occurred reading data object <"//TRIM(ADJUSTL(object))//&
-         "> from file <"//TRIM(ADJUSTL(file_name))//">"
-    ELSE
-       WRITE (UNIT=message,FMT="(A,I0,A)")&
-         "Could not read data object <"//TRIM(ADJUSTL(object))//&
-         "> from logical unit ",unit_number,". The I/O unit does not exist."
-    END IF
-
-    IF (PRESENT(para_env)) THEN
-      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message),&
-                        para_env)
-    ELSE
-      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
-    END IF
-
-  END SUBROUTINE stop_read
-
-! *****************************************************************************
-!> \brief Print an error message and stop the program execution in case of a
-!>        read error.
-!> \param routineN ...
-!> \param moduleN ...
-!> \param line_number ...
-!> \param object ...
-!> \param unit_number ...
-!> \param para_env ...
-!> \par History
-!>      - Creation (15.02.2011,MK)
-!> \author Matthias Krack (MK)
-!> \note
-!>      routineN   : Name of the calling routine
-!>      moduleN    : Name of the calling module including the calling routine
-!>      object     : Name of the data object for which I/O operation failed
-!>      unit_number: Logical unit number of the file written to
-! *****************************************************************************
-  SUBROUTINE stop_write(routineN,moduleN,line_number,object,unit_number,&
-                        para_env)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
-    INTEGER, INTENT(IN)                      :: line_number
-    CHARACTER(LEN=*), INTENT(IN)             :: object
-    INTEGER, INTENT(IN)                      :: unit_number
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
-
-    CHARACTER(LEN=2*default_path_length)     :: message
-    CHARACTER(LEN=default_path_length)       :: file_name
-    LOGICAL                                  :: file_exists
-
-    IF (unit_number>=0) THEN
-       INQUIRE (UNIT=unit_number,EXIST=file_exists)
-    ELSE
-       file_exists=.FALSE.
-    ENDIF
-    IF (file_exists) THEN
-       INQUIRE (UNIT=unit_number,NAME=file_name)
-       WRITE (UNIT=message,FMT="(A)")&
-         "An error occurred writing data object <"//TRIM(ADJUSTL(object))//&
-         "> to file <"//TRIM(ADJUSTL(file_name))//">"
-    ELSE
-       WRITE (UNIT=message,FMT="(A,I0,A)")&
-         "Could not write data object <"//TRIM(ADJUSTL(object))//&
-         "> to logical unit ",unit_number,". The I/O unit does not exist."
-    END IF
-
-    IF (PRESENT(para_env)) THEN
-      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message),&
-                        para_env)
-    ELSE
-      CALL stop_program(TRIM(routineN),TRIM(moduleN),line_number,TRIM(message))
-    END IF
-
-  END SUBROUTINE stop_write
+  END SUBROUTINE stop_memory
 
 END MODULE termination

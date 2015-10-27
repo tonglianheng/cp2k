@@ -14,6 +14,8 @@ MODULE mixed_environment_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
+  USE cp_log_handling,                 ONLY: cp_logger_p_type,&
+                                             cp_logger_release
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_p_type,&
@@ -45,7 +47,6 @@ MODULE mixed_environment_types
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

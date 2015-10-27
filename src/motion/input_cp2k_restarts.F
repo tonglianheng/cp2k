@@ -16,6 +16,10 @@ MODULE input_cp2k_restarts
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_get_length,&
                                              cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -75,12 +79,10 @@ MODULE input_cp2k_restarts
                                              thermostat_gle,&
                                              thermostat_nose
   USE string_utilities,                ONLY: string_to_ascii
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_write
+  USE termination,                     ONLY: stop_memory
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: communication_thermo_low2,&
                                              get_kin_energies
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -2325,47 +2327,43 @@ CONTAINS
        WRITE (UNIT=output_unit,IOSTAT=istat)&
          natomkind,natom,ncore,nshell,nmoleculekind,nmolecule
        IF (istat /= 0) THEN
-          CALL stop_write(routineN,moduleN,__LINE__,&
-                          "natomkind,natom,ncore,nshell,nmoleculekind,nmolecule "//&
+          CALL stop_write("natomkind,natom,ncore,nshell,nmoleculekind,nmolecule "//&
                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                          output_unit,para_env)
+                          output_unit)
        END IF
 
        ! Write atomic kind names
        DO ikind=1,natomkind
           WRITE (UNIT=output_unit,IOSTAT=istat) atomic_kinds%els(ikind)%name
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          "atomic_kinds%els(ikind)%name "//&
+          IF (istat /= 0) CALL stop_write("atomic_kinds%els(ikind)%name "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
           n_char_size = n_char_size + LEN(atomic_kinds%els(ikind)%name)
        END DO
 
        ! Write atomic kind numbers of all atoms
        ALLOCATE (ibuf(natom),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "ibuf",int_size*natom,para_env)
+                                        "ibuf",int_size*natom)
        DO iatom=1,natom
           ibuf(iatom) = particles%els(iatom)%atomic_kind%kind_number
        END DO
        WRITE (UNIT=output_unit,IOSTAT=istat) ibuf(1:natom)
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "ibuf(1:natom) -> atomic kind numbers "//&
+       IF (istat /= 0) CALL stop_write("ibuf(1:natom) -> atomic kind numbers "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_int_size = n_int_size + natom
        ! Write atomic coordinates
        ALLOCATE (rbuf(3,natom),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "rbuf",dp_size*3*natom,para_env)
+                                        "rbuf",dp_size*3*natom)
        DO iatom=1,natom
           rbuf(1:3,iatom) = particles%els(iatom)%r(1:3)
        END DO
        WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:natom)
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "rbuf(1:3,1:natom) -> atomic coordinates "//&
+       IF (istat /= 0) CALL stop_write("rbuf(1:3,1:natom) -> atomic coordinates "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_dp_size = n_dp_size + 3*natom
        DEALLOCATE (rbuf)
 
@@ -2374,17 +2372,16 @@ CONTAINS
           ! Write molecule kind names
           DO ikind=1,nmoleculekind
              WRITE (UNIT=output_unit,IOSTAT=istat) molecule_kinds%els(ikind)%name
-             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                             "molecule_kinds%els(ikind)%name "//&
+             IF (istat /= 0) CALL stop_write("molecule_kinds%els(ikind)%name "//&
                                              "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                             output_unit,para_env)
+                                             output_unit)
              n_char_size = n_char_size + LEN(molecule_kinds%els(ikind)%name)
           END DO
           ! Write molecule (kind) index numbers for all atoms
           ibuf(:) = 0
           ALLOCATE (imol(natom),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "imol",int_size*natom,para_env)
+                                           "imol",int_size*natom)
           imol(:) = 0
           DO imolecule=1,nmolecule
              ikind = molecules%els(imolecule)%molecule_kind%kind_number
@@ -2396,17 +2393,15 @@ CONTAINS
           END DO
           ! Write molecule kind index number for each atom
           WRITE (UNIT=output_unit,IOSTAT=istat) ibuf(1:natom)
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          "ibuf(1:natom) -> molecule kind index numbers "//&
+          IF (istat /= 0) CALL stop_write("ibuf(1:natom) -> molecule kind index numbers "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
           n_int_size = n_int_size + natom
           ! Write molecule index number for each atom
           WRITE (UNIT=output_unit,IOSTAT=istat) imol(1:natom)
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          "imol(1:natom) -> molecule index numbers "//&
+          IF (istat /= 0) CALL stop_write("imol(1:natom) -> molecule index numbers "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
           n_int_size = n_int_size + natom
           DEALLOCATE (imol)
        END IF ! molecules
@@ -2416,78 +2411,72 @@ CONTAINS
        ! Core-shell model only
        section_label = "SHELL COORDINATES"
        WRITE (UNIT=output_unit,IOSTAT=istat) section_label,nshell
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "section_label, nshell "//&
+       IF (istat /= 0) CALL stop_write("section_label, nshell "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
        IF (nshell > 0) THEN
           ! Write shell coordinates
           ALLOCATE (rbuf(3,nshell),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "rbuf",dp_size*3*nshell,para_env)
+                                           "rbuf",dp_size*3*nshell)
           DO ishell=1,nshell
              rbuf(1:3,ishell) = shell_particles%els(ishell)%r(1:3)
           END DO
           WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:nshell)
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          "rbuf(1:3,1:nshell) -> shell coordinates "//&
+          IF (istat /= 0) CALL stop_write("rbuf(1:3,1:nshell) -> shell coordinates "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
           n_dp_size = n_dp_size + 3*nshell
           DEALLOCATE (rbuf)
           ! Write atomic indices, i.e. number of the atom the shell belongs to
           ALLOCATE (ibuf(nshell),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "ibuf",int_size*nshell,para_env)
+                                           "ibuf",int_size*nshell)
           DO ishell=1,nshell
              ibuf(ishell) = shell_particles%els(ishell)%atom_index
           END DO
           WRITE (UNIT=output_unit,IOSTAT=istat) ibuf(1:nshell)
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          "ibuf(1:nshell) -> atomic indices "//&
+          IF (istat /= 0) CALL stop_write("ibuf(1:nshell) -> atomic indices "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
           n_int_size = n_int_size + nshell
           DEALLOCATE (ibuf)
        END IF
 
        section_label = "CORE COORDINATES"
        WRITE (UNIT=output_unit,IOSTAT=istat) section_label,ncore
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "section_label, ncore "//&
+       IF (istat /= 0) CALL stop_write("section_label, ncore "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
        IF (ncore > 0) THEN
           ! Write core coordinates
           ALLOCATE (rbuf(3,ncore),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "rbuf",dp_size*3*ncore,para_env)
+                                           "rbuf",dp_size*3*ncore)
           DO icore=1,ncore
              rbuf(1:3,icore) = core_particles%els(icore)%r(1:3)
           END DO
           WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:ncore)
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          "rbuf(1:3,1:ncore) -> core coordinates "//&
+          IF (istat /= 0) CALL stop_write("rbuf(1:3,1:ncore) -> core coordinates "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
           n_dp_size = n_dp_size + 3*ncore
           DEALLOCATE (rbuf)
           ! Write atomic indices, i.e. number of the atom the core belongs to
           ALLOCATE (ibuf(ncore),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "ibuf",int_size*ncore,para_env)
+                                           "ibuf",int_size*ncore)
           DO icore=1,ncore
              ibuf(icore) = core_particles%els(icore)%atom_index
           END DO
           WRITE (UNIT=output_unit,IOSTAT=istat) ibuf(1:ncore)
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          "ibuf(1:ncore) -> atomic indices "//&
+          IF (istat /= 0) CALL stop_write("ibuf(1:ncore) -> atomic indices "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
           n_int_size = n_int_size + ncore
           DEALLOCATE (ibuf)
        END IF
@@ -2509,10 +2498,9 @@ CONTAINS
        nhc_size = 0
        IF (output_unit > 0) THEN
           WRITE (UNIT=output_unit,IOSTAT=istat) section_label,nhc_size
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          TRIM(section_label)//", nhc_size "//&
+          IF (istat /= 0) CALL stop_write(TRIM(section_label)//", nhc_size "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
        ENDIF
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
@@ -2538,10 +2526,9 @@ CONTAINS
        nhc_size = 0
        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,IOSTAT=istat) section_label,nhc_size
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          "nhc_size "//&
+          IF (istat /= 0) CALL stop_write("nhc_size "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
        ENDIF
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
@@ -2560,10 +2547,9 @@ CONTAINS
        section_label = "VELOCITIES"
        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,IOSTAT=istat) section_label,MERGE(natom,0,write_velocities)
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          TRIM(section_label)//", write_velocities "//&
+          IF (istat /= 0) CALL stop_write(TRIM(section_label)//", write_velocities "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
        ENDIF
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
@@ -2574,26 +2560,24 @@ CONTAINS
        IF (write_velocities) THEN
           ALLOCATE (rbuf(3,natom),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "rbuf",dp_size*3*natom,para_env)
+                                           "rbuf",dp_size*3*natom)
           ! Write atomic velocities
           DO iatom=1,natom
              rbuf(1:3,iatom) = particles%els(iatom)%v(1:3)
           END DO
           WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:natom)
-          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                          "rbuf(1:3,1:natom) -> atomic velocities "//&
+          IF (istat /= 0) CALL stop_write("rbuf(1:3,1:natom) -> atomic velocities "//&
                                           "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                          output_unit,para_env)
+                                          output_unit)
           n_dp_size = n_dp_size + 3*natom
           DEALLOCATE (rbuf)
        END IF
        ! Write shell velocities
        section_label = "SHELL VELOCITIES"
        WRITE (UNIT=output_unit,IOSTAT=istat) section_label,MERGE(nshell,0,write_velocities)
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       TRIM(section_label)//", write_velocities "//&
+       IF (istat /= 0) CALL stop_write(TRIM(section_label)//", write_velocities "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
        IF (print_info .AND. log_unit > 0) THEN
@@ -2604,15 +2588,14 @@ CONTAINS
           IF (write_velocities) THEN
              ALLOCATE (rbuf(3,nshell),STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "rbuf",dp_size*3*nshell,para_env)
+                                              "rbuf",dp_size*3*nshell)
              DO ishell=1,nshell
                 rbuf(1:3,ishell) = shell_particles%els(ishell)%v(1:3)
              END DO
              WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:nshell)
-             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                             "rbuf(1:3,1:nshell) -> shell velocities "//&
+             IF (istat /= 0) CALL stop_write("rbuf(1:3,1:nshell) -> shell velocities "//&
                                              "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                             output_unit,para_env)
+                                             output_unit)
              n_dp_size = n_dp_size + 3*nshell
              DEALLOCATE (rbuf)
           END IF
@@ -2620,10 +2603,9 @@ CONTAINS
        ! Write core velocities
        section_label = "CORE VELOCITIES"
        WRITE (UNIT=output_unit,IOSTAT=istat) section_label,MERGE(ncore,0,write_velocities)
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       TRIM(section_label)//", write_velocities "//&
+       IF (istat /= 0) CALL stop_write(TRIM(section_label)//", write_velocities "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
        IF (print_info .AND. log_unit > 0) THEN
@@ -2634,15 +2616,14 @@ CONTAINS
           IF (write_velocities) THEN
              ALLOCATE (rbuf(3,ncore),STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "rbuf",dp_size*3*ncore,para_env)
+                                              "rbuf",dp_size*3*ncore)
              DO icore=1,ncore
                 rbuf(1:3,icore) = core_particles%els(icore)%v(1:3)
              END DO
              WRITE (UNIT=output_unit,IOSTAT=istat) rbuf(1:3,1:ncore)
-             IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                             "rbuf(1:3,1:ncore) -> core velocities "//&
+             IF (istat /= 0) CALL stop_write("rbuf(1:3,1:ncore) -> core velocities "//&
                                              "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                             output_unit,para_env)
+                                             output_unit)
              n_dp_size = n_dp_size + 3*ncore
              DEALLOCATE (rbuf)
           END IF
@@ -2715,10 +2696,9 @@ CONTAINS
 
     IF (output_unit > 0) THEN ! only ionode
        WRITE (UNIT=output_unit,IOSTAT=istat) section_label,nhc_size
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "nhc_size "//&
+       IF (istat /= 0) CALL stop_write("nhc_size "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
        IF (print_info .AND. log_unit > 0) THEN
@@ -2727,10 +2707,9 @@ CONTAINS
        END IF
        ! eta
        WRITE (UNIT=output_unit,IOSTAT=istat) eta(1:nhc_size)
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "eta(1:nhc_size) "//&
+       IF (istat /= 0) CALL stop_write("eta(1:nhc_size) "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_dp_size = n_dp_size + nhc_size
     END IF ! ionode only
 
@@ -2739,10 +2718,9 @@ CONTAINS
     ! veta
     IF (output_unit > 0) THEN ! only ionode
        WRITE (UNIT=output_unit,IOSTAT=istat) veta(1:nhc_size)
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "veta(1:nhc_size) "//&
+       IF (istat /= 0) CALL stop_write("veta(1:nhc_size) "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_dp_size = n_dp_size + nhc_size
     END IF ! ionode only
 
@@ -2751,10 +2729,9 @@ CONTAINS
     ! mnhc
     IF (output_unit > 0) THEN ! only ionode
        WRITE (UNIT=output_unit,IOSTAT=istat) mnhc(1:nhc_size)
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "mnhc(1:nhc_size) "//&
+       IF (istat /= 0) CALL stop_write("mnhc(1:nhc_size) "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_dp_size = n_dp_size + nhc_size
     END IF ! ionode only
 
@@ -2763,10 +2740,9 @@ CONTAINS
     ! fnhc
     IF (output_unit > 0) THEN ! only ionode
        WRITE (UNIT=output_unit,IOSTAT=istat) fnhc(1:nhc_size)
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "fnhc(1:nhc_size) "//&
+       IF (istat /= 0) CALL stop_write("fnhc(1:nhc_size) "//&
                                        "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+                                       output_unit)
        n_dp_size = n_dp_size + nhc_size
     END IF ! ionode only
 
@@ -2775,5 +2751,45 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_binary_thermostats_nose
+
+! *****************************************************************************
+!> \brief Print an error message and stop the program execution in case of a
+!>        read error.
+!> \param object ...
+!> \param unit_number ...
+!> \par History
+!>      - Creation (15.02.2011,MK)
+!> \author Matthias Krack (MK)
+!> \note
+!>      object     : Name of the data object for which I/O operation failed
+!>      unit_number: Logical unit number of the file written to
+! *****************************************************************************
+  SUBROUTINE stop_write(object,unit_number)
+    CHARACTER(LEN=*), INTENT(IN)             :: object
+    INTEGER, INTENT(IN)                      :: unit_number
+
+    CHARACTER(LEN=2*default_path_length)     :: message
+    CHARACTER(LEN=default_path_length)       :: file_name
+    LOGICAL                                  :: file_exists
+
+    IF (unit_number>=0) THEN
+       INQUIRE (UNIT=unit_number,EXIST=file_exists)
+    ELSE
+       file_exists=.FALSE.
+    ENDIF
+    IF (file_exists) THEN
+       INQUIRE (UNIT=unit_number,NAME=file_name)
+       WRITE (UNIT=message,FMT="(A)")&
+         "An error occurred writing data object <"//TRIM(ADJUSTL(object))//&
+         "> to file <"//TRIM(ADJUSTL(file_name))//">"
+    ELSE
+       WRITE (UNIT=message,FMT="(A,I0,A)")&
+         "Could not write data object <"//TRIM(ADJUSTL(object))//&
+         "> to logical unit ",unit_number,". The I/O unit does not exist."
+    END IF
+
+    CPABORT(message)
+
+  END SUBROUTINE stop_write
 
 END MODULE input_cp2k_restarts

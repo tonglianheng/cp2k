@@ -13,6 +13,7 @@
 !> \author Joost VandeVondele (2003-08)
 ! *****************************************************************************
 MODULE cp_fm_diag
+USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_default_unit_nr, cp_logger_get_unit_nr
   USE machine,                         ONLY: m_memory
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinit
@@ -55,7 +56,6 @@ MODULE cp_fm_diag
   USE ELPA2, ONLY: solve_evp_real_2stage
 #endif
 
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -466,7 +466,12 @@ CONTAINS
     DEALLOCATE (work)
 
     DEALLOCATE (iwork)
-
+#else
+   MARK_USED(matrix)
+   MARK_USED(eigenvectors)
+   MARK_USED(eig)
+   info = -1
+   CPABORT("cp_fm_syevd_base called with out SCALAPACK compiled in")
 #endif
 
     CALL timestop(handle)

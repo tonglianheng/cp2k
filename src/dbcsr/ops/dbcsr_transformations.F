@@ -55,7 +55,6 @@ MODULE dbcsr_transformations
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_unimplemented_error_nr,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_clearfrom_index_array,&
@@ -598,9 +597,8 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix not initialized.",__LINE__)
-    CALL dbcsr_assert (matrix%m%replication_type .NE. dbcsr_repl_none,&
-         dbcsr_warning_level, dbcsr_caller_error, routineN,&
-         "Distributing a non-replicated matrix makes no sense.",__LINE__)
+    IF(matrix%m%replication_type.EQ.dbcsr_repl_none)&
+       CPWARN("Distributing a non-replicated matrix makes no sense.")
     IF (PRESENT (fast)) THEN
        mini=fast
     ELSE
@@ -1122,7 +1120,6 @@ CONTAINS
     ! Reshuffle the data
     CALL make_undense_data (undense_matrix, dense_data,&
          nfullrows_local, nfullcols_local,&
-         local_row_blk_offsets, local_col_blk_offsets,&
          dense_local_row_blk_offsets, dense_local_col_blk_offsets,&
          array_data(row_map), array_data(col_map),&
          row_internal_offsets, col_internal_offsets)
@@ -1191,9 +1188,8 @@ CONTAINS
          nfullrows*nfullcols,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Dense data too small",__LINE__)
-    CALL dbcsr_assert (join_cols, "OR", join_rows, dbcsr_warning_level,&
-         dbcsr_unimplemented_error_nr, routineN,&
-         "Joining neither rows nor columns is untested", __LINE__)
+    IF(.NOT.join_cols.AND..NOT.join_rows)&
+       CPWARN("Joining neither rows nor columns is untested")
     !
     CALL dbcsr_data_clear (dense_data)
     IF (dbcsr_data_get_size(matrix%m%data_area) .GT. 0&
@@ -1270,8 +1266,6 @@ CONTAINS
 !> \param[in] dense_data             Dense data
 !> \param[in] nfullrows              number of full rows in local submatrix
 !> \param[in] nfullcols              number of full columns in local submatrix
-!> \param[in] und_row_blk_offsets    row block offsets for undense data
-!> \param[in] und_col_blk_offsets    column block offsets for undense data
 !> \param[in] dense_row_blk_offsets  row block offsets for dense data
 !> \param[in] dense_col_blk_offsets  column block offsets for dense data
 !> \param[in] row_map                mapping from undense to dense rows
@@ -1281,15 +1275,14 @@ CONTAINS
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_undense_data (matrix, dense_data, nfullrows, nfullcols,&
-       und_row_blk_offsets, und_col_blk_offsets,&
        dense_row_blk_offsets, dense_col_blk_offsets,&
        row_map, col_map, row_internal_offsets, col_internal_offsets)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_data_obj), INTENT(IN)         :: dense_data
     INTEGER, INTENT(IN)                      :: nfullrows, nfullcols
-    INTEGER, DIMENSION(:), INTENT(IN) :: und_row_blk_offsets, &
-      und_col_blk_offsets, dense_row_blk_offsets, dense_col_blk_offsets, &
-      row_map, col_map, row_internal_offsets, col_internal_offsets
+    INTEGER, DIMENSION(:), INTENT(IN) :: dense_row_blk_offsets, &
+      dense_col_blk_offsets, row_map, col_map, row_internal_offsets, &
+      col_internal_offsets
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_undense_data', &
       routineP = moduleN//':'//routineN
@@ -1317,7 +1310,7 @@ CONTAINS
 !$OMP          dense_offset) &
 !$OMP SHARED (&
 !$OMP         matrix, dense_data, &
-!$OMP         nfullrows, nfullcols, und_row_blk_offsets, und_col_blk_offsets,&
+!$OMP         nfullrows, nfullcols, &
 !$OMP         dense_row_blk_offsets, dense_col_blk_offsets,&
 !$OMP         row_map, col_map,&
 !$OMP         row_internal_offsets, col_internal_offsets)
@@ -1453,17 +1446,15 @@ CONTAINS
          dbcsr_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows',__LINE__)
     IF (dbg) THEN
-       CALL dbcsr_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1),&
-            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
-            'Range of row distribution not equal to processor rows',__LINE__)
+       IF(MAXVAL(row_dist).NE.UBOUND(blacs2mpi,1))&
+          CPWARN('Range of row distribution not equal to processor rows')
     ENDIF
     CALL dbcsr_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
          'Col distribution references unexistent processor cols',__LINE__)
     IF (dbg) THEN
-       CALL dbcsr_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2),&
-            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
-            'Range of col distribution not equal to processor cols',__LINE__)
+       IF(MAXVAL(col_dist).NE.UBOUND(blacs2mpi,2))&
+          CPWARN('Range of col distribution not equal to processor cols')
     ENDIF
     ! Define the number of nodes with which I will communicate. Also
     ! setup row and column communicators.
@@ -1709,9 +1700,8 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_is_initialized(redist%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Output matrix not initialized.",__LINE__)
-    CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
-         dbcsr_warning_level, dbcsr_caller_error, routineN,&
-         "Can not redistribute replicated matrix.",__LINE__)
+    IF(matrix%m%replication_type.NE.dbcsr_repl_none)&
+       CPWARN("Can not redistribute replicated matrix.")
     !
     my_keep_sparsity = .FALSE.
     IF (PRESENT (keep_sparsity)) my_keep_sparsity = keep_sparsity
@@ -1765,17 +1755,15 @@ CONTAINS
          dbcsr_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows',__LINE__)
     IF (dbg) THEN
-       CALL dbcsr_assert(MAXVAL(row_dist_new),"EQ",UBOUND(pgrid,1),&
-            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
-            'Range of row distribution not equal to processor rows',__LINE__)
+       IF(MAXVAL(row_dist_new).NE.UBOUND(pgrid,1))&
+          CPWARN('Range of row distribution not equal to processor rows')
     ENDIF
     CALL dbcsr_assert(MAXVAL(col_dist_new),"LE",UBOUND(pgrid,2), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
          'Col distribution references unexistent processor cols',__LINE__)
     IF (dbg) THEN
-       CALL dbcsr_assert(MAXVAL(col_dist_new),"EQ",UBOUND(pgrid,2),&
-            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
-            'Range of col distribution not equal to processor cols',__LINE__)
+       IF(MAXVAL(col_dist_new).NE.UBOUND(pgrid,2))&
+          CPWARN('Range of col distribution not equal to processor cols')
     ENDIF
     ALLOCATE (send_count(2, 0:numnodes-1))
     ALLOCATE (recv_count(2, 0:numnodes-1))
@@ -2113,9 +2101,8 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_is_initialized(redist%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Output matrix not initialized.",__LINE__)
-    CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
-         dbcsr_warning_level, dbcsr_caller_error, routineN,&
-         "Can not redistribute replicated matrix.",__LINE__)
+    IF(matrix%m%replication_type.NE.dbcsr_repl_none)&
+       CPWARN("Can not redistribute replicated matrix.")
     data_type = matrix%m%data_type
     ! Get row and column start and end positions
     ! Old matrix
@@ -2135,17 +2122,15 @@ CONTAINS
          dbcsr_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows',__LINE__)
     IF (dbg) THEN
-       CALL dbcsr_assert(MAXVAL(row_dist_new).EQ.UBOUND(pgrid,1),&
-            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
-            'Range of row distribution not equal to processor rows',__LINE__)
+       IF(MAXVAL(row_dist_new).NE.UBOUND(pgrid,1))&
+          CPWARN('Range of row distribution not equal to processor rows')
     ENDIF
     CALL dbcsr_assert(MAXVAL(col_dist_new).LE.UBOUND(pgrid,2), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
          'Col distribution references unexistent processor cols',__LINE__)
     IF (dbg) THEN
-       CALL dbcsr_assert(MAXVAL(col_dist_new).EQ.UBOUND(pgrid,2),&
-            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
-            'Range of col distribution not equal to processor cols',__LINE__)
+       IF(MAXVAL(col_dist_new).NE.UBOUND(pgrid,2))&
+          CPWARN('Range of col distribution not equal to processor cols')
     ENDIF
     ALLOCATE (send_count(2, 0:numnodes-1))
     ALLOCATE (recv_count(2, 0:numnodes-1))

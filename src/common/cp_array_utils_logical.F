@@ -40,9 +40,9 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_array_utils_logical
-  USE machine,                         ONLY: m_flush
+  USE cp_log_handling,                 ONLY: cp_to_string
 ! dummy line needed for coverage broadcasting
-#include "cp_common_uses.f90"
+  USE machine,                         ONLY: m_flush
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -28,10 +28,8 @@ MODULE dbcsr_csr_conversions
                                              dbcsr_distribution_new,&
                                              dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -986,7 +984,7 @@ CONTAINS
       CALL dbcsr_create(csr_sparsity_nosym, &
                         template=dbcsr_mat_nosym, &
                         name="CSR sparsity matrix",&
-                        data_type=dbcsr_type_real_4)
+                        data_type=dbcsr_type_real_8)
       CALL dbcsr_copy(csr_sparsity_nosym, dbcsr_mat_nosym)
       CALL dbcsr_set(csr_sparsity_nosym, 1.0_sp)
     ENDIF
@@ -1129,9 +1127,8 @@ CONTAINS
         "field col_blk_size of DBCSR matrix not consistent with CSR matrix",&
         __LINE__)
     ELSE
-      CALL dbcsr_assert(.FALSE., dbcsr_warning_level, dbcsr_caller_error, routineN,&
-        "Can not assert consistency of the matrices as no block data stored in CSR matrix.",&
-        __LINE__)
+      CALL cp_warn(__LOCATION__, "Can not assert consistency of the matrices "//&
+           "as no block data stored in CSR matrix.")
     ENDIF
     CALL timestop(handle)
   END SUBROUTINE csr_assert_consistency_with_dbcsr
@@ -1256,10 +1253,8 @@ CONTAINS
     INTEGER                                  :: blkcol, blkrow, col_blk_size, &
                                                 data_type, row_blk_size
     LOGICAL                                  :: tr
-    REAL(kind=real_4), ALLOCATABLE, &
-      DIMENSION(:)                           :: csr_sparsity_blk
     REAL(kind=real_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: block_abs
+      DIMENSION(:)                           :: block_abs, csr_sparsity_blk
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_iterator)                     :: iter
 
@@ -1269,9 +1264,9 @@ CONTAINS
     CALL dbcsr_create(csr_sparsity, &
                       template=dbcsr_mat, &
                       name="CSR sparsity",&
-                      data_type=dbcsr_type_real_4)
+                      data_type=dbcsr_type_real_8)
     CALL dbcsr_copy(csr_sparsity, dbcsr_mat)
-    CALL dbcsr_set(csr_sparsity, 1.0_sp)
+    CALL dbcsr_set(csr_sparsity, 1.0_dp)
 
     IF (eps .GT. 0.0_dp) THEN
       data_type = dbcsr_get_data_type(dbcsr_mat)
@@ -1295,8 +1290,8 @@ CONTAINS
             block_abs(:) = REAL(ABS(block%d%c_dp(:)), KIND=real_8)
         END SELECT
 
-        csr_sparsity_blk = 1.0_sp
-        WHERE(block_abs .LT. eps) csr_sparsity_blk = 0.0_sp
+        csr_sparsity_blk = 1.0_dp
+        WHERE(block_abs .LT. eps) csr_sparsity_blk = 0.0_dp
         CALL dbcsr_put_block(csr_sparsity, blkrow, blkcol, csr_sparsity_blk, transposed = tr)
         DEALLOCATE (csr_sparsity_blk,block_abs)
       ENDDO
