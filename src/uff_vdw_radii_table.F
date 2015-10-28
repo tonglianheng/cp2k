@@ -1,3 +1,15 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief provides a table for UFF vdW radii:
+!>        Rappe et al. J. Am. Chem. Soc. 114, 10024 (1992)
+!> \par History
+!>      created 2015/10/28
+!> \author Lianheng Tong (lianheng.tong [AT] kcl.ac.uk)
+! *****************************************************************************
 MODULE uff_vdw_radii_table
 
   USE kinds, ONLY: dp
@@ -14,7 +26,7 @@ MODULE uff_vdw_radii_table
 
   INTEGER, PARAMETER :: NELEMENTS = 118
   REAL(KIND=dp), PARAMETER ::  NAN = -1.0_dp
-  ! units are in Angstrom, in the order of z
+  ! the table: units are in Angstrom, in the order of z
   REAL(KIND=dp), DIMENSION(NELEMENTS), PARAMETER :: uff_vdw_radius = &
        (/ &
          1.443_dp, & !  1 H
@@ -139,6 +151,13 @@ MODULE uff_vdw_radii_table
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief get UFF vdW radius for a given element
+!> \param z      : on input, atomic number
+!> \param radius : on output, UFF vdW radius, 0.0 if element not in table
+!> \param found  : on output, T if element is in table, F if not
+!> \author Lianheng Tong (lianheng.tong [AT] kcl.ac.uk)
+! *****************************************************************************
   PURE SUBROUTINE get_uff_vdw_radius(z, radius, found)
     INTEGER, INTENT(IN) :: z
     REAL(KIND=dp), INTENT(OUT) :: radius
@@ -146,7 +165,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_uff_vdw_radius', &
          routineP = moduleN//':'//routineN
-    
+
     IF (uff_vdw_radius(z) == NAN) THEN
        radius = 0.0_dp
        found = .FALSE.
