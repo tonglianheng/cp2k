@@ -504,17 +504,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: symbol
+    CHARACTER(LEN=default_string_length)     :: missing_rmax, missing_rmin
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: ikind, j, kind_number, nkind, &
-                                                nrep_rmax, nrep_rmin, z, &
-                                                n_rmin_missing, n_rmax_missing
+    INTEGER                                  :: ikind, j, kind_number, &
+                                                n_rmax_missing, &
+                                                n_rmin_missing, nkind, &
+                                                nrep_rmax, nrep_rmin, z
     LOGICAL                                  :: explicit, has_rmax, has_rmin
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: rmax_is_set, rmin_is_set
     REAL(KIND=dp)                            :: auto_rmax_scale, &
                                                 auto_rmin_scale, rmax, rmin
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    LOGICAL, DIMENSION(:), ALLOCATABLE       :: rmin_is_set, rmax_is_set
-    CHARACTER(LEN=default_string_length)     :: missing_rmin, missing_rmax
 
     nrep_rmin = 0
     nrep_rmax = 0
