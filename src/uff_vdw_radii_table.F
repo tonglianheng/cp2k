@@ -134,7 +134,7 @@ MODULE uff_vdw_radii_table
          NAN,      & !115 Uup
          NAN,      & !116 Lv
          NAN,      & !117 Uus
-         NAN,      & !118 Uuo
+         NAN       & !118 Uuo
        /)
 
 CONTAINS

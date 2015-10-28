@@ -418,8 +418,6 @@ CONTAINS
        resp_env%stride = my_stride(1:3)
     END IF
     CALL section_vals_val_get(resp_section,"WIDTH", r_val=resp_env%eta)
-    CALL section_vals_val_get(resp_section,"AUTO_VDW_RADII_TABLE",&
-                              i_val=resp_env%auto_vdw_radii_table)
 
     ! get if the user wants to use REPEAT method
     CALL section_vals_val_get(resp_section,"USE_REPEAT_METHOD",&
@@ -429,7 +427,6 @@ CONTAINS
        ! settings modified for use_repeat_method run
        resp_env%rheavies = .FALSE.                       ! restrain heavies should be off
        resp_env%molecular_sys = .TRUE.                   ! force sphere sampling
-       resp_env%auto_vdw_radii_table = use_uff_vdw_radii ! force using UFF table
     END IF
 
     ! get and set the parameters for molecular (non-surface) systems
@@ -529,6 +526,12 @@ CONTAINS
     CALL section_vals_get(sphere_section, explicit=explicit)
     IF (explicit) resp_env%molecular_sys = .TRUE.
     IF (resp_env%molecular_sys) THEN
+       CALL section_vals_val_get(sphere_section,"AUTO_VDW_RADII_TABLE",&
+                                 i_val=resp_env%auto_vdw_radii_table)
+       IF (resp_env%use_repeat_method) THEN
+          ! force using UFF table
+          resp_env%auto_vdw_radii_table = use_uff_vdw_radii
+       END IF
        CALL section_vals_val_get(sphere_section,"AUTO_RMIN_SCALE",r_val=auto_rmin_scale)
        CALL section_vals_val_get(sphere_section,"AUTO_RMAX_SCALE",r_val=auto_rmax_scale)
        CALL section_vals_val_get(sphere_section,"RMIN",explicit=has_rmin,r_val=rmin)
@@ -537,6 +540,8 @@ CONTAINS
        CALL section_vals_val_get(sphere_section,"RMAX_KIND",n_rep_val=nrep_rmax)
        ALLOCATE(resp_env%rmin_kind(nkind))
        ALLOCATE(resp_env%rmax_kind(nkind))
+       resp_env%rmin_kind = 0.0_dp
+       resp_env%rmax_kind = 0.0_dp
        ALLOCATE(rmin_is_set(nkind))
        ALLOCATE(rmax_is_set(nkind))
        rmin_is_set = .FALSE.
@@ -559,12 +564,16 @@ CONTAINS
              CALL get_ptable_info(symbol,vdw_radius=resp_env%rmin_kind(kind_number))
              rmin_is_set(kind_number) = .TRUE.
           END SELECT
-          resp_env%rmin_kind(kind_number) = cp_unit_to_cp2k(resp_env%rmin_kind(kind_number), &
-                                                            "angstrom")
-          resp_env%rmin_kind(kind_number) = resp_env%rmin_kind(kind_number)*auto_rmin_scale
-          resp_env%rmax_kind(kind_number) = &
-               MAX(resp_env%rmin_kind(kind_number), &
-                   resp_env%rmin_kind(kind_number)*auto_rmax_scale)
+          IF (rmin_is_set(kind_number)) THEN
+             resp_env%rmin_kind(kind_number) = cp_unit_to_cp2k(resp_env%rmin_kind(kind_number), &
+                                                               "angstrom")
+             resp_env%rmin_kind(kind_number) = resp_env%rmin_kind(kind_number)*auto_rmin_scale
+             ! set RMAX_KIND accourding by scaling RMIN_KIND
+             resp_env%rmax_kind(kind_number) = &
+                  MAX(resp_env%rmin_kind(kind_number), &
+                      resp_env%rmin_kind(kind_number)*auto_rmax_scale)
+             rmax_is_set(kind_number) = .TRUE.
+          END IF
        END DO
        ! if RMIN or RMAX are present, overwrite the rmin_kind(:) and
        ! rmax_kind(:) to those values
@@ -619,25 +628,25 @@ CONTAINS
                                kind_number=kind_number)
           IF (.NOT. rmin_is_set(kind_number)) THEN
              n_rmin_missing = n_rmin_missing + 1
-             missing_rmin = missing_rmin // symbol // "  "
+             missing_rmin = missing_rmin // symbol // ", "
           END IF
           IF (.NOT. rmax_is_set(kind_number)) THEN
              n_rmax_missing = n_rmax_missing + 1
-             missing_rmax = missing_rmax // symbol // "  "
+             missing_rmax = missing_rmax // symbol // ", "
           END IF
        END DO
        IF (n_rmin_missing > 0) THEN
           CALL cp_warn(__LOCATION__, &
-                       "RMIN for the following elements are missing: "\\&
-                       TRIM(missing_rmin)\\&
-                       "Please set these values manually using "\\&
+                       "RMIN for the following elements are missing: "//&
+                       TRIM(missing_rmin)//&
+                       "please set these values manually using "//&
                        "RMIN_KIND in SPHERE_SAMPLING section")
        END IF
        IF (n_rmax_missing > 0) THEN
           CALL cp_warn(__LOCATION__, &
-                       "RMAX for the following elements are missing: "\\&
-                       TRIM(missing_rmax)\\&
-                       "Please set these values manually using "\\&
+                       "RMAX for the following elements are missing: "//&
+                       TRIM(missing_rmax)//&
+                       "please set these values manually using "//&
                        "RMAX_KIND in SPHERE_SAMPLING section")
        END IF
        IF (n_rmin_missing > 0 .OR. &
@@ -1537,17 +1546,17 @@ CONTAINS
       WRITE(output_unit,'(T3,A)') &
            "Fit the variance of the potential (REPEAT method)."
       WRITE(output_unit,'(T3,A)') &
-           "------------------------------------------------------------------------"
+           "+----------------------------------------------------------------------+"
       WRITE(output_unit,'(T3,A)') &
            "| Due to using REPEAT method, the following keywords has been changed: |"
-      WRITE(output_unit,'(T3,A,l,T75,A)') &
+      WRITE(output_unit,'(T3,A,l,T74,A)') &
            "| * RESTRAIN_HEAVIES_TO_ZERO = ", resp_env%rheavies, "|"
-      WRITE(output_unit,'(T3,A,l,T75,A)') &
+      WRITE(output_unit,'(T3,A,l,T74,A)') &
            "| * SPHERE_SAMPLING = ", resp_env%molecular_sys, "|"
       WRITE(output_unit,'(T3,A)') &
            "| * Using UFF vdW radii table for SPHERE_SAMPLING                      |"
       WRITE(output_unit,'(T3,A)') &
-           "------------------------------------------------------------------------"
+           "+----------------------------------------------------------------------+"
      ENDIF
      IF(.NOT.resp_env%equal_charges) THEN
       WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit constraints: ",resp_env%ncons_sec
@@ -1567,6 +1576,7 @@ CONTAINS
      ENDIF
      WRITE(output_unit,'(T3,A,T66,3I5)') "Stride: ",resp_env%stride
      IF(resp_env%molecular_sys) THEN
+        WRITE(output_unit,'(T3,A)') "Using sphere sampling"
        IF(ALL(resp_env%rmin_kind==resp_env%rmin_kind(1)))&
         WRITE(output_unit,'(T3,A,T71,F10.5)') "Rmin [angstrom]: ",resp_env%rmin_kind(1)*conv
        IF(ALL(resp_env%rmax_kind==resp_env%rmax_kind(1)))&
