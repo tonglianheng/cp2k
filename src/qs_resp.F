@@ -1522,12 +1522,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'print_resp_parameter_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, output_unit, nkinds, ikind, kind_number
+    CHARACTER(len=2)                         :: symbol
+    INTEGER                                  :: handle, i, ikind, &
+                                                kind_number, nkinds, &
+                                                output_unit
     REAL(KIND=dp)                            :: conv, eta_conv
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input, resp_section
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    CHARACTER(len=2)                         :: symbol
 
     CALL timeset(routineN,handle)
     NULLIFY(logger,input,resp_section)
