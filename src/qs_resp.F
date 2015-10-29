@@ -19,6 +19,7 @@ MODULE qs_resp
                                              Golze2015,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
                                              pbc,&
                                              use_perd_none,&
                                              use_perd_xyz
@@ -520,8 +521,8 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: rmax_is_set, rmin_is_set
     REAL(KIND=dp)                            :: auto_rmax_scale, &
                                                 auto_rmin_scale, rmax, rmin
+    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp), DIMENSION(3,3)            :: hmat
 
     nrep_rmin = 0
     nrep_rmax = 0
@@ -793,11 +794,10 @@ CONTAINS
                                                 rmax, rmin, vec(3), &
                                                 vec_pbc(3), vj
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist
+    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat, hmat_inv
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_type), POINTER                   :: v_hartree_pw
-    LOGICAL :: orthorhombic
-    REAL(KIND=dp), DIMENSION(3,3)            :: hmat, hmat_inv
 
     CALL timeset(routineN,handle)
 
@@ -806,7 +806,7 @@ CONTAINS
 
     CALL get_cell(cell=cell, h=hmat, h_inv=hmat_inv)
 
-    IF (.NOT.resp_env%%orthorhombic_cell) THEN
+    IF (.NOT.resp_env%orthorhombic_cell) THEN
        CALL cp_abort(__LOCATION__,&
             "Nonperiodic solution for RESP charges only"//&
             " implemented for orthorhombic cells!")
@@ -944,6 +944,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ip, j, jx, jy, jz
+    INTEGER, DIMENSION(3)                    :: periodic
     REAL(KIND=dp)                            :: normalize_factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vpot
@@ -952,7 +953,6 @@ CONTAINS
     TYPE(pw_p_type)                          :: rho_ga, va_gspace, va_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    INTEGER, DIMENSION(3)                    :: periodic
 
     CALL timeset(routineN,handle)
 
