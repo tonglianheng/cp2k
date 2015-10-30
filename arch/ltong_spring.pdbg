@@ -14,7 +14,7 @@ WFLAGS  = -Waliasing -Wampersand -Wc-binding-type -Wconversion \
           -Werror -fsanitize=leak
 DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC -D__HAS_smm_dnn \
            -D__parallel -D__BLACS -D__SCALAPACK
-FCFLAGS  = -g -fcheck=bounds,do,recursion,pointer -ffree-form \
+FCFLAGS  = -O1 -g -fcheck=bounds,do,recursion,pointer -ffree-form \
            -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer \
            -mtune=generic -std=f2003 \
            $(DFLAGS) -I${FFTW3_INCLUDE} -I${OpenBLAS_INCLUDE} -I${LIBINT_INCLUDE} \
