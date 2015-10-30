@@ -19,6 +19,7 @@ MODULE qs_resp
                                              Golze2015,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
                                              pbc,&
                                              use_perd_none,&
                                              use_perd_xyz
@@ -103,7 +104,8 @@ MODULE qs_resp
   TYPE resp_type
    LOGICAL                                :: equal_charges, itc,&
                                              molecular_sys, rheavies,&
-                                             use_repeat_method
+                                             use_repeat_method, &
+                                             orthorhombic_cell
    INTEGER                                :: nres, ncons,&
                                              nrest_sec, ncons_sec,&
                                              npoints, stride(3), my_fit,&
@@ -267,6 +269,7 @@ CONTAINS
     resp_env%molecular_sys=.FALSE.
     resp_env%rheavies=.FALSE.
     resp_env%use_repeat_method=.FALSE.
+    resp_env%orthorhombic_cell=.FALSE.
 
     resp_env%box_hi=0.0_dp
     resp_env%box_low=0.0_dp
@@ -365,8 +368,8 @@ CONTAINS
 !> \param cons_section constraints section, part of resp section
 !> \param rest_section restraints section, part of resp section
 ! *****************************************************************************
-  SUBROUTINE init_resp(resp_env,rep_sys,subsys,&
-             atomic_kind_set,cell,resp_section,cons_section,rest_section)
+  SUBROUTINE init_resp(resp_env, rep_sys, subsys, atomic_kind_set, &
+                       cell, resp_section, cons_section, rest_section)
 
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
@@ -418,6 +421,9 @@ CONTAINS
        resp_env%stride = my_stride(1:3)
     END IF
     CALL section_vals_val_get(resp_section,"WIDTH", r_val=resp_env%eta)
+
+    ! record if cell is orthorhombic
+    CALL get_cell(cell=cell, orthorhombic=resp_env%orthorhombic_cell)
 
     ! get if the user wants to use REPEAT method
     CALL section_vals_val_get(resp_section,"USE_REPEAT_METHOD",&
@@ -515,6 +521,7 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: rmax_is_set, rmin_is_set
     REAL(KIND=dp)                            :: auto_rmax_scale, &
                                                 auto_rmin_scale, rmax, rmin
+    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     nrep_rmin = 0
@@ -629,25 +636,25 @@ CONTAINS
                                kind_number=kind_number)
           IF (.NOT. rmin_is_set(kind_number)) THEN
              n_rmin_missing = n_rmin_missing + 1
-             missing_rmin = missing_rmin // symbol // ", "
+             missing_rmin = TRIM(missing_rmin)//" "//TRIM(symbol)//","
           END IF
           IF (.NOT. rmax_is_set(kind_number)) THEN
              n_rmax_missing = n_rmax_missing + 1
-             missing_rmax = missing_rmax // symbol // ", "
+             missing_rmax = TRIM(missing_rmax)//" "//TRIM(symbol)//","
           END IF
        END DO
        IF (n_rmin_missing > 0) THEN
           CALL cp_warn(__LOCATION__, &
                        "RMIN for the following elements are missing: "//&
                        TRIM(missing_rmin)//&
-                       "please set these values manually using "//&
+                       " please set these values manually using "//&
                        "RMIN_KIND in SPHERE_SAMPLING section")
        END IF
        IF (n_rmax_missing > 0) THEN
           CALL cp_warn(__LOCATION__, &
                        "RMAX for the following elements are missing: "//&
                        TRIM(missing_rmax)//&
-                       "please set these values manually using "//&
+                       " please set these values manually using "//&
                        "RMAX_KIND in SPHERE_SAMPLING section")
        END IF
        IF (n_rmin_missing > 0 .OR. &
@@ -655,7 +662,8 @@ CONTAINS
           CPABORT("Insufficient data for RMIN or RMAX")
        END IF
 
-       resp_env%box_hi = (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
+       CALL get_cell(cell=cell, h=hmat)
+       resp_env%box_hi = (/hmat(1,1),hmat(2,2),hmat(3,3)/)
        resp_env%box_low = 0.0_dp
        CALL section_vals_val_get(sphere_section,"X_HI",explicit=explicit)
        IF (explicit) CALL section_vals_val_get(sphere_section,"X_HI",&
@@ -786,6 +794,7 @@ CONTAINS
                                                 rmax, rmin, vec(3), &
                                                 vec_pbc(3), vj
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist
+    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat, hmat_inv
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_type), POINTER                   :: v_hartree_pw
@@ -795,7 +804,9 @@ CONTAINS
     NULLIFY(particle_set,v_hartree_pw)
     delta = 1.0E-13_dp
 
-    IF (.NOT.cell%orthorhombic) THEN
+    CALL get_cell(cell=cell, h=hmat, h_inv=hmat_inv)
+
+    IF (.NOT.resp_env%orthorhombic_cell) THEN
        CALL cp_abort(__LOCATION__,&
             "Nonperiodic solution for RESP charges only"//&
             " implemented for orthorhombic cells!")
@@ -849,9 +860,9 @@ CONTAINS
        not_in_range=.FALSE.
        DO i=1,natom
           vec=r-particles%els(i)%r
-          vec_pbc(1) = vec(1) - cell%hmat(1,1)*ANINT(cell%h_inv(1,1)*vec(1))
-          vec_pbc(2) = vec(2) - cell%hmat(2,2)*ANINT(cell%h_inv(2,2)*vec(2))
-          vec_pbc(3) = vec(3) - cell%hmat(3,3)*ANINT(cell%h_inv(3,3)*vec(3))
+          vec_pbc(1) = vec(1) - hmat(1,1)*ANINT(hmat_inv(1,1)*vec(1))
+          vec_pbc(2) = vec(2) - hmat(2,2)*ANINT(hmat_inv(2,2)*vec(2))
+          vec_pbc(3) = vec(3) - hmat(3,3)*ANINT(hmat_inv(3,3)*vec(3))
           dist(i)=SQRT(SUM(vec_pbc**2))
           CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind,&
                kind_number=kind_number)
@@ -868,14 +879,14 @@ CONTAINS
        ! check if the point is sufficiently close and  far. if OK, we can use
        ! the point for fitting, add/subtract 1.0E-13 to get rid of rounding errors when shifting atoms
        IF(ANY(not_in_range(:,1)).OR.ALL(not_in_range(:,2))) CYCLE
-       resp_env%npoints = resp_env%npoints + 1
-       IF(resp_env%npoints > now) THEN
+       resp_env%npoints_proc = resp_env%npoints_proc + 1
+       IF(resp_env%npoints_proc > now) THEN
           now = 2*now
           CALL reallocate(resp_env%fitpoints,1,3,1,now)
        ENDIF
-       resp_env%fitpoints(1,resp_env%npoints) = jx
-       resp_env%fitpoints(2,resp_env%npoints) = jy
-       resp_env%fitpoints(3,resp_env%npoints) = jz
+       resp_env%fitpoints(1,resp_env%npoints_proc) = jx
+       resp_env%fitpoints(2,resp_env%npoints_proc) = jy
+       resp_env%fitpoints(3,resp_env%npoints_proc) = jz
        ! correct for the fact that v_hartree is scaled by dvol, and has the opposite sign
        IF (qs_env%qmmm) THEN
           ! If it's a QM/MM run let's remove the contribution of the MM potential out of the Hartree pot
@@ -895,7 +906,7 @@ CONTAINS
     ENDDO
     ENDDO
 
-    resp_env%npoints_proc=resp_env%npoints
+    resp_env%npoints=resp_env%npoints_proc
     CALL mp_sum(resp_env%npoints,v_hartree_pw%pw_grid%para%group)
     CALL mp_sum(matrix,v_hartree_pw%pw_grid%para%group)
     CALL mp_sum(rhs,v_hartree_pw%pw_grid%para%group)
@@ -933,6 +944,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ip, j, jx, jy, jz
+    INTEGER, DIMENSION(3)                    :: periodic
     REAL(KIND=dp)                            :: normalize_factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vpot
@@ -946,7 +958,9 @@ CONTAINS
 
     NULLIFY(pw_env, para_env,auxbas_pw_pool,poisson_env)
 
-    IF(.NOT.ALL(cell%perd/=0)) THEN
+    CALL get_cell(cell=cell, periodic=periodic)
+
+    IF(.NOT.ALL(periodic/=0)) THEN
         CALL cp_abort(__LOCATION__,&
              "Periodic solution for RESP (with periodic Poisson solver)"//&
              " can only be obtained with a cell that has XYZ periodicity")
@@ -972,7 +986,7 @@ CONTAINS
     !get fitting points and store them in resp_env%fitpoints
     CALL get_fitting_points(qs_env,resp_env,rep_sys,particles=particles,&
          cell=cell)
-    ALLOCATE(vpot(resp_env%npoints,natom))
+    ALLOCATE(vpot(resp_env%npoints_proc,natom))
     normalize_factor=SQRT((resp_env%eta/pi)**3)
 
     DO i=1,natom
@@ -985,7 +999,7 @@ CONTAINS
       CALL pw_zero(va_rspace%pw)
       CALL pw_transfer(va_gspace%pw,va_rspace%pw)
       CALL pw_scale(va_rspace%pw,normalize_factor)
-      DO ip=1,resp_env%npoints
+      DO ip=1,resp_env%npoints_proc
          jx = resp_env%fitpoints(1,ip)
          jy = resp_env%fitpoints(2,ip)
          jz = resp_env%fitpoints(3,ip)
@@ -1006,8 +1020,6 @@ CONTAINS
       CALL calculate_rhs(qs_env,resp_env,resp_env%rhs(i),vpot(:,i))
     ENDDO
 
-    resp_env%npoints_proc=resp_env%npoints
-    CALL mp_sum(resp_env%npoints,para_env%group)
     CALL mp_sum(resp_env%matrix,para_env%group)
     CALL mp_sum(resp_env%rhs,para_env%group)
     !weighted sum
@@ -1158,17 +1170,20 @@ CONTAINS
          ENDDO
          IF(in_z*in_y*in_x==0) CYCLE
        ENDIF
-       resp_env%npoints=resp_env%npoints+1
-       IF(resp_env%npoints > now) THEN
+       resp_env%npoints_proc=resp_env%npoints_proc+1
+       IF(resp_env%npoints_proc > now) THEN
           now = 2*now
           CALL reallocate(resp_env%fitpoints,1,3,1,now)
        ENDIF
-       resp_env%fitpoints(1,resp_env%npoints) = jx
-       resp_env%fitpoints(2,resp_env%npoints) = jy
-       resp_env%fitpoints(3,resp_env%npoints) = jz
+       resp_env%fitpoints(1,resp_env%npoints_proc) = jx
+       resp_env%fitpoints(2,resp_env%npoints_proc) = jy
+       resp_env%fitpoints(3,resp_env%npoints_proc) = jz
       ENDDO
      ENDDO
     ENDDO
+
+    resp_env%npoints=resp_env%npoints_proc
+    CALL mp_sum(resp_env%npoints,para_env%group)
 
     DEALLOCATE(dist)
     DEALLOCATE(not_in_range)
@@ -1205,12 +1220,12 @@ CONTAINS
     NULLIFY(v_hartree_pw)
     CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_pw)
     dvol=v_hartree_pw%pw_grid%dvol
-    ALLOCATE(vhartree(resp_env%npoints))
+    ALLOCATE(vhartree(resp_env%npoints_proc))
     vhartree = 0.0_dp
 
     !multiply v_hartree and va_rspace and calculate the vector rhs
     !taking into account that v_hartree has opposite site; remove v_qmmm
-    DO ip=1,resp_env%npoints
+    DO ip=1,resp_env%npoints_proc
        jx = resp_env%fitpoints(1,ip)
        jy = resp_env%fitpoints(2,ip)
        jz = resp_env%fitpoints(3,ip)
@@ -1522,19 +1537,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'print_resp_parameter_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, output_unit
+    CHARACTER(len=2)                         :: symbol
+    INTEGER                                  :: handle, i, ikind, &
+                                                kind_number, nkinds, &
+                                                output_unit
     REAL(KIND=dp)                            :: conv, eta_conv
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input, resp_section
 
     CALL timeset(routineN,handle)
     NULLIFY(logger,input,resp_section)
 
-    CALL get_qs_env(qs_env, input=input)
+    CALL get_qs_env(qs_env, &
+                    input=input, &
+                    atomic_kind_set=atomic_kind_set)
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP")
     logger => cp_get_default_logger()
     output_unit=cp_print_key_unit_nr(logger,resp_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".resp")
+    nkinds = SIZE(atomic_kind_set)
 
     conv=cp_unit_from_cp2k(1.0_dp,"angstrom")
     IF(.NOT.my_per==use_perd_none) THEN
@@ -1546,17 +1569,17 @@ CONTAINS
      IF(resp_env%use_repeat_method) THEN
       WRITE(output_unit,'(T3,A)') &
            "Fit the variance of the potential (REPEAT method)."
-      WRITE(output_unit,'(T3,A)') &
+      WRITE(output_unit,'(T6,A)') &
            "+----------------------------------------------------------------------+"
-      WRITE(output_unit,'(T3,A)') &
+      WRITE(output_unit,'(T6,A)') &
            "| Due to using REPEAT method, the following keywords has been changed: |"
-      WRITE(output_unit,'(T3,A,l1,T74,A)') &
+      WRITE(output_unit,'(T6,A,l1,T77,A)') &
            "| * RESTRAIN_HEAVIES_TO_ZERO = ", resp_env%rheavies, "|"
-      WRITE(output_unit,'(T3,A,l1,T74,A)') &
+      WRITE(output_unit,'(T6,A,l1,T77,A)') &
            "| * SPHERE_SAMPLING = ", resp_env%molecular_sys, "|"
-      WRITE(output_unit,'(T3,A)') &
+      WRITE(output_unit,'(T6,A)') &
            "| * Using UFF vdW radii table for SPHERE_SAMPLING                      |"
-      WRITE(output_unit,'(T3,A)') &
+      WRITE(output_unit,'(T6,A)') &
            "+----------------------------------------------------------------------+"
      ENDIF
      IF(.NOT.resp_env%equal_charges) THEN
@@ -1577,14 +1600,30 @@ CONTAINS
      ENDIF
      WRITE(output_unit,'(T3,A,T66,3I5)') "Stride: ",resp_env%stride
      IF(resp_env%molecular_sys) THEN
+        WRITE(output_unit,'(T3,A)') &
+             "------------------------------------------------------------------------------"
         WRITE(output_unit,'(T3,A)') "Using sphere sampling"
-       IF(ALL(resp_env%rmin_kind==resp_env%rmin_kind(1)))&
-        WRITE(output_unit,'(T3,A,T71,F10.5)') "Rmin [angstrom]: ",resp_env%rmin_kind(1)*conv
-       IF(ALL(resp_env%rmax_kind==resp_env%rmax_kind(1)))&
-        WRITE(output_unit,'(T3,A,T71,F10.5)')  "Rmax [angstrom]: ",resp_env%rmax_kind(1)*conv
-       WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box min [angstrom]: ",resp_env%box_low(1:3)*conv
-       WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box max [angstrom]: ",resp_env%box_hi(1:3)*conv
+        WRITE(output_unit,'(T3,A,T46,A,T66,A)') &
+             "Element", "RMIN [angstrom]", "RMAX [angstrom]"
+        DO ikind = 1, nkinds
+           CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
+                                kind_number=kind_number, &
+                                element_symbol=symbol)
+           WRITE(output_unit,'(T3,A,T51,F10.5,T71,F10.5)') &
+                symbol, &
+                resp_env%rmin_kind(kind_number)*conv, &
+                resp_env%rmax_kind(kind_number)*conv
+        END DO
+        IF(resp_env%orthorhombic_cell) THEN
+           WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box min [angstrom]: ",resp_env%box_low(1:3)*conv
+           WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box max [angstrom]: ",resp_env%box_hi(1:3)*conv
+        END IF
+        WRITE(output_unit,'(T3,A)') &
+             "------------------------------------------------------------------------------"
      ELSE
+       WRITE(output_unit,'(T3,A)') &
+             "------------------------------------------------------------------------------"
+       WRITE(output_unit,'(T3,A)') "Using slab sampling"
        WRITE(output_unit,'(2X,A,F10.5)')  "Index of atoms defining the surface: "
        DO i=1, SIZE(rep_sys)
         IF(i>1.AND.ALL(rep_sys(i)%p_resp%atom_surf_list==rep_sys(1)%p_resp%atom_surf_list)) EXIT
@@ -1601,6 +1640,8 @@ CONTAINS
         WRITE(output_unit,'(T3,A,T71,F10.5)')  "Length of sampling box above each"//&
                            " surface atom [angstrom]: ",rep_sys(i)%p_resp%length*conv
        ENDDO
+       WRITE(output_unit,'(T3,A)') &
+             "------------------------------------------------------------------------------"
      ENDIF
      IF(.NOT.my_per==use_perd_none) THEN
        WRITE(output_unit,'(T3,A,T71,F10.5)')  "Width of Gaussian charge"//&
