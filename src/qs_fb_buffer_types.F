@@ -144,7 +144,7 @@ CONTAINS
 
 ! INTEGER VERSION
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief retains the given fb_buffer
 !> \param buffer : the fb_bffer object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -159,7 +159,7 @@ CONTAINS
     buffer%obj%ref_count = buffer%obj%ref_count + 1
   END SUBROUTINE fb_buffer_i_retain
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief releases the given fb_buffer
 !> \param buffer : the fb_bffer object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -283,7 +283,7 @@ CONTAINS
     ALLOCATE(buffer%obj%disps(my_nslices))
     buffer%obj%data = 0
     buffer%obj%disps = 0
-    ! set n for buffer before calc disps 
+    ! set n for buffer before calc disps
     buffer%obj%n = my_nslices
     ! compute disps from sizes if required
     IF (PRESENT(sizes)) THEN
@@ -438,7 +438,7 @@ CONTAINS
 
 ! DOUBLE PRECISION VERSION
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief retains the given fb_buffer
 !> \param buffer : the fb_bffer object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -453,7 +453,7 @@ CONTAINS
     buffer%obj%ref_count = buffer%obj%ref_count + 1
   END SUBROUTINE fb_buffer_d_retain
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief releases the given fb_buffer
 !> \param buffer : the fb_bffer object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
