@@ -17,7 +17,7 @@ MODULE qs_resp
                                              get_atomic_kind
   USE bibliography,                    ONLY: Campana2009,&
                                              Golze2015,&
-                                             Rappe1992
+                                             Rappe1992,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
