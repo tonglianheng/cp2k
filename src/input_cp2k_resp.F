@@ -350,7 +350,7 @@ CONTAINS
                        "Rappe et al. J. Am. Chem. Soc. 114, 10024 (1992)"),&
          enum_i_vals=(/use_cambridge_vdw_radii,&
                        use_uff_vdw_radii/),&
-         citation=(/Rappe1992/))
+         citations=(/Rappe1992/))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
