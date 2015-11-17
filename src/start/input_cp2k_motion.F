@@ -10,6 +10,8 @@
 ! *****************************************************************************
 MODULE input_cp2k_motion
   USE bibliography,                    ONLY: Byrd1995,&
+                                             Ceriotti2010,&
+                                             Ceriotti2012,&
                                              Henkelman1999
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
@@ -25,14 +27,17 @@ MODULE input_cp2k_motion
        default_minimization_method_id, default_ts_method_id, do_mc_gemc_npt, &
        do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fmt_id_pdb, &
        fmt_id_xyz, gaussian, helium_cell_shape_cube, &
-       helium_cell_shape_octahedron, ls_2pnt, ls_3pnt, ls_fit, ls_gold, &
-       ls_none, numerical, transformation_normal, transformation_stage
+       helium_cell_shape_octahedron, integrate_exact, integrate_numeric, &
+       ls_2pnt, ls_3pnt, ls_fit, ls_gold, ls_none, matrix_init_cholesky, &
+       matrix_init_diagonal, numerical, propagator_pimd, propagator_rpmd, &
+       transformation_normal, transformation_stage
   USE input_cp2k_constraints,          ONLY: create_constraint_section
   USE input_cp2k_free_energy,          ONLY: create_fe_section
   USE input_cp2k_md,                   ONLY: create_md_section
   USE input_cp2k_motion_print,         ONLY: add_format_keyword,&
                                              create_motion_print_section
   USE input_cp2k_neb,                  ONLY: create_band_section
+  USE input_cp2k_subsys,               ONLY: create_rng_section
   USE input_cp2k_thermostats,          ONLY: create_coord_section,&
                                              create_gle_section,&
                                              create_velocity_section
@@ -1544,7 +1549,7 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PINT",&
          description="The section that controls a path integral run",&
-         n_keywords=11, n_subsections=8, repeats=.FALSE.)
+         n_keywords=13, n_subsections=8, repeats=.FALSE.)
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="p",&
@@ -1593,17 +1598,35 @@ CONTAINS
          usage="dt 1.0",unit_str="fs")
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="HARM_INT",&
+         description="integrator scheme for integrating the harmonic bead springs.",&
+         usage="HARM_INT (NUMERIC|EXACT)",&
+         default_i_val=integrate_numeric,&
+         enum_c_vals=s2a("NUMERIC","EXACT"),&
+         enum_i_vals=(/integrate_numeric,integrate_exact/))
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
     CALL keyword_create(keyword, name="nrespa",&
          description="number of respa steps for the bead for each md step",&
          repeats=.FALSE., default_i_val=5)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="transformation",&
          description="Specifies the coordinate transformation to use",&
          usage="TRANSFORMATION (NORMAL|STAGE)",&
          default_i_val=transformation_normal,&
          enum_c_vals=s2a("NORMAL","STAGE"),&
          enum_i_vals=(/transformation_normal,transformation_stage/))
+
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="propagator",&
+         description="Specifies the real time propagator to use",&
+         usage="PROPAGATOR (PIMD|RPMD)",&
+         default_i_val=propagator_pimd,&
+         enum_c_vals=s2a("PIMD","RPMD"),&
+         enum_i_vals=(/propagator_pimd,propagator_rpmd/))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
     CALL keyword_create(keyword, name="FIX_CENTROID_POS",&
@@ -1689,6 +1712,74 @@ CONTAINS
     CALL section_add_subsection(section, subsection)
     CALL section_release(subsection)
 
+    CALL section_create(subsection,name="PILE",&
+         description="Controls the PI Langevin Equation thermostat."//&
+         " Needs the exact harmonic integrator",&
+         citations=(/Ceriotti2010/),&
+         n_keywords=2, n_subsections=1,&
+         repeats=.FALSE.)
+    CALL create_rng_section(subsubsection)
+    CALL section_add_subsection(subsection,subsubsection)
+    CALL section_release(subsubsection)
+    CALL keyword_create(keyword, name="TAU", &
+         description="Time constant for centroid motion. "//&
+         "If zero or negative the centroid is not thermostated.",&
+         usage="TAU {real}", type_of_var=real_t,&
+         n_var=1, default_r_val=10000.0_dp)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="LAMBDA", &
+         description="Scaling of friction to mode coupling",&
+         usage="LAMBDA {real}", type_of_var=real_t,&
+         unit_str="fs", n_var=1, default_r_val=0.01_dp)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+
+    CALL section_create(subsection,name="PIGLET",&
+         description="Controls the PI Generalized Langevin Equation thermostat."//&
+         " Needs the exact harmonic integrator",&
+         citations=(/Ceriotti2012/),&
+         n_keywords=3, n_subsections=2,&
+         repeats=.FALSE.)
+    CALL create_rng_section(subsubsection)
+    CALL section_add_subsection(subsection,subsubsection)
+    CALL section_release(subsubsection)
+    CALL section_create(subsubsection,name="EXTRA_DOF",&
+         description="Additional degrees of freedom to ensure Markovian Dynamics.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
+    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+         description="Restart values for additional degrees of freedom"&
+         //" (only for restarts, do not set explicitly)",&
+         repeats=.FALSE.,&
+         type_of_var=real_t, n_var=-1)
+    CALL section_add_keyword(subsubsection,keyword)
+    CALL keyword_release(keyword)
+    CALL section_add_subsection(subsection,subsubsection)
+    CALL section_release(subsubsection)
+    CALL keyword_create(keyword, name="NEXTRA_DOF", &
+         description="Number of extra degrees of freedom to ensure markovian dynamics", &
+         repeats=.FALSE., default_i_val=8)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="MATRICES_FILE_NAME", &
+         description="Filename containig the raw matrices from "//&
+         "https://epfl-cosmo.github.io/gle4md/index.html?page=matrix", &
+         repeats=.FALSE., default_lc_val="PIGLET.MAT")
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="SMATRIX_INIT",&
+         description="Select algorithm to initialize piglet S-matrices",&
+         usage="SMATRIX_INIT (CHOLESKY|DIAGONAL)",&
+         default_i_val=matrix_init_cholesky,&
+         enum_c_vals=s2a("CHOLESKY","DIAGONAL"),&
+         enum_i_vals=(/matrix_init_cholesky,matrix_init_diagonal/))
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+
     CALL section_create( subsection, name="INIT",&
          description="Controls the initialization if the beads are not present",&
          repeats=.FALSE.)
@@ -1721,6 +1812,13 @@ CONTAINS
          description="Initial seed for the (pseudo)random number "//&
          "generator that controls Levy walk for bead positions.",&
          usage="LEVY_SEED <INTEGER>",default_i_val=1234,&
+         repeats=.FALSE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword,name="THERMOSTAT_SEED",&
+         description="Initial seed for the (pseudo)random number "//&
+         "generator that controls the PILE and PIGLET thermostats.",&
+         usage="THERMOSTAT_SEED <INTEGER>",default_i_val=12345,&
          repeats=.FALSE.)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
@@ -1797,6 +1895,12 @@ CONTAINS
          print_level=high_print_level,common_iter_levels=1)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
+
+    CALL keyword_create(keyword, name="IMAGINARY_TIME_STRIDE", &
+         description="Prints only every nth bead trajectory",&
+         repeats=.FALSE., default_i_val=1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
 
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)

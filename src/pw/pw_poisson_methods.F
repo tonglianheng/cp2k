@@ -200,7 +200,7 @@ CONTAINS
                    pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool,&
                    poisson_params=poisson_env%parameters,&
                    mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid,&
-                   dct_pw_grid=poisson_env%dct_aux_pw_grid)
+                   dct_pw_grid=poisson_env%dct_pw_grid)
         CASE (pw_poisson_wavelet)
            CPASSERT(ASSOCIATED(density%pw_grid))
            CALL ps_wavelet_create(poisson_env%parameters,poisson_env%wavelet,&
@@ -214,7 +214,6 @@ CONTAINS
            CALL ps_implicit_create(poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                    poisson_env%parameters, &
                    poisson_env%dct_pw_grid, &
-                   poisson_env%dct_aux_pw_grid, &
                    poisson_env%green_fft, poisson_env%implicit_env)
         CASE (pw_poisson_none)
         CASE default
@@ -319,10 +318,24 @@ CONTAINS
        CASE (PS_IMPLICIT)
 
           IF (has_dielectric .AND. PRESENT(rho_core)) THEN
-             CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
-                                    poisson_env%diel_rs_grid,&
-                                    poisson_env%pw_pools(poisson_env%pw_level)%pool, &
-                                    density, rho_core=rho_core%pw)
+             SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
+             CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
+                CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                        poisson_env%diel_rs_grid,&
+                                        poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                        density, rho_core=rho_core%pw)
+             CASE (NEUMANN_BC, MIXED_BC)
+                CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                        poisson_env%diel_rs_grid,&
+                                        poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                        poisson_env%dct_pw_grid, &
+                                        poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
+                                        poisson_env%implicit_env%dct_env%dests_expand, &
+                                        poisson_env%implicit_env%dct_env%srcs_expand, &
+                                        poisson_env%implicit_env%dct_env%flipg_stat, &
+                                        poisson_env%implicit_env%dct_env%bounds_shftd, &
+                                        density, rho_core=rho_core%pw)
+             END SELECT
           END IF
 
           CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
@@ -494,7 +507,6 @@ CONTAINS
 !> \param use_level ...
 !> \param mt_super_ref_pw_grid ...
 !> \param dct_pw_grid ...
-!> \param dct_aux_pw_grid ...
 !> \param force_rebuild ...
 !> \author fawzi
 !> \note
@@ -503,7 +515,7 @@ CONTAINS
 !>      you have to set everything at once. Change this behaviour?
 ! *****************************************************************************
   SUBROUTINE pw_poisson_set ( poisson_env, cell_hmat, parameters, pw_pools, use_level, &
-              mt_super_ref_pw_grid, dct_pw_grid, dct_aux_pw_grid, force_rebuild)
+              mt_super_ref_pw_grid, dct_pw_grid, force_rebuild)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -514,7 +526,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: pw_pools
     INTEGER, INTENT(in), OPTIONAL            :: use_level
     TYPE(pw_grid_type), OPTIONAL, POINTER    :: mt_super_ref_pw_grid, &
-                                                dct_pw_grid, dct_aux_pw_grid
+                                                dct_pw_grid
     LOGICAL, INTENT(in), OPTIONAL            :: force_rebuild
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_set', &
@@ -565,14 +577,6 @@ CONTAINS
        END IF
        CALL pw_grid_release(poisson_env%dct_pw_grid)
        poisson_env%dct_pw_grid => dct_pw_grid
-    END IF
-
-    IF (PRESENT(dct_aux_pw_grid)) THEN
-       IF (ASSOCIATED(dct_aux_pw_grid)) THEN
-          CALL pw_grid_retain(dct_aux_pw_grid)
-       END IF
-       CALL pw_grid_release(poisson_env%dct_aux_pw_grid)
-       poisson_env%dct_aux_pw_grid => dct_aux_pw_grid
     END IF
 
     IF (PRESENT(mt_super_ref_pw_grid)) THEN
