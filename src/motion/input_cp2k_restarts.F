@@ -77,7 +77,9 @@ MODULE input_cp2k_restarts
   USE pint_transformations,            ONLY: pint_u2x
   USE pint_types,                      ONLY: pint_env_type,&
                                              thermostat_gle,&
-                                             thermostat_nose
+                                             thermostat_nose,&
+                                             thermostat_piglet,&
+                                             thermostat_pile
   USE string_utilities,                ONLY: string_to_ascii
   USE termination,                     ONLY: stop_memory
   USE thermostat_types,                ONLY: thermostat_type
@@ -898,7 +900,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_pint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, ibead, inos
+    CHARACTER(LEN=rng_record_length)         :: rng_record
+    INTEGER                                  :: handle, i, iatom, ibead, &
+                                                inos, isp
+    INTEGER, DIMENSION(rng_record_length, 1) :: ascii
     LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(section_vals_type), POINTER         :: pint_section, tmpsec
@@ -994,7 +999,37 @@ CONTAINS
       NULLIFY(tmpsec)
       tmpsec => section_vals_get_subs_vals(pint_section,"GLE")
       CALL dump_gle_restart_info(pint_env%gle, pint_env%replicas%para_env, tmpsec)
-
+      
+    ELSE IF(pint_env%pimd_thermostat==thermostat_pile) THEN
+      tmpsec => section_vals_get_subs_vals(pint_section, &
+                "PILE%RNG_INIT")
+      CALL dump_rng_stream(rng_stream=pint_env%pile_therm%gaussian_rng_stream,&
+           rng_record=rng_record)
+      CALL string_to_ascii(rng_record,ascii(:,1))
+      CALL section_rng_val_set(rng_section=tmpsec, nsize=1, &
+           ascii=ascii)
+    ELSE IF(pint_env%pimd_thermostat==thermostat_piglet) THEN
+      tmpsec => section_vals_get_subs_vals(pint_section, &
+                "PIGLET%RNG_INIT")
+      CALL dump_rng_stream(rng_stream=pint_env%piglet_therm%gaussian_rng_stream,&
+           rng_record=rng_record)
+      CALL string_to_ascii(rng_record,ascii(:,1))
+      CALL section_rng_val_set(rng_section=tmpsec, nsize=1, &
+           ascii=ascii)
+      ! update thermostat velocities in the global input structure
+      NULLIFY(r_vals)
+      ALLOCATE(r_vals((pint_env%piglet_therm%nsp1-1)* &
+                      pint_env%piglet_therm%ndim* &
+                      pint_env%piglet_therm%p))
+      i=1
+      DO isp=2, pint_env%piglet_therm%nsp1
+        DO ibead=1, pint_env%piglet_therm%p*pint_env%piglet_therm%ndim
+          r_vals(i)=pint_env%piglet_therm%smalls(isp,ibead)
+          i = i+1
+        END DO
+      END DO
+      CALL section_vals_val_set(pint_section,"PIGLET%EXTRA_DOF%_DEFAULT_KEYWORD_", &
+           r_vals_ptr=r_vals)
     END IF
 
     CALL timestop(handle)

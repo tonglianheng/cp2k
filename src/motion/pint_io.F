@@ -145,7 +145,7 @@ MODULE pint_io
     content_id(vel_id) = "VEL"
     WRITE(UNIT=title(pos_id),FMT="(A,I8,A,F20.10)")&
           " i =",pint_env%iter,&
-          ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
+          ", E =",SUM(pint_env%e_pot_bead)*pint_env%propagator%physpotscale
     WRITE(UNIT=title(vel_id),FMT="(A,I8,A,F20.10,A,F20.10)")&
           " i =",pint_env%iter,&
           ", E_trm =",pint_env%energy(e_kin_thermo_id),&
@@ -281,7 +281,8 @@ MODULE pint_io
       DIMENSION(2)                           :: content_id, middle_name, &
                                                 sect_path
     INTEGER                                  :: handle, handle1, iat, ib, id, &
-                                                idim, idir, ierr, outformat, &
+                                                idim, idir, ierr, &
+                                                imag_stride, outformat, &
                                                 should_output, unit_nr
     LOGICAL                                  :: failure, new_file
     REAL(kind=dp)                            :: unit_conv
@@ -355,8 +356,13 @@ MODULE pint_io
            cell=cell, subsys=subsys)
       CALL cp_subsys_get(subsys,particles=particles)
 
+      !Get print stride for bead trajectories
+      CALL section_vals_val_get(pint_env%input,&
+         "MOTION%PINT%PRINT%IMAGINARY_TIME_STRIDE",&
+         i_val=imag_stride)
+
       ! iterate over beads
-      DO ib = 1, pint_env%p
+      DO ib = 1, pint_env%p, imag_stride
 
         ! copy the requested property of the current bead
         ! to the particles structure
@@ -555,7 +561,7 @@ MODULE pint_io
         END IF
         temp = cp_unit_from_cp2k(2.0_dp*pint_env%e_kin_beads/&
                REAL(ndof,dp)/REAL(pint_env%ndim,dp),&
-               "K")
+               "K") * pint_env%propagator%temp_sim2phys
 
         WRITE (unit_nr,"(I8,1X,F12.3,1X,5(F20.9,1X),F12.1)")&
                pint_env%iter,&
@@ -597,7 +603,8 @@ MODULE pint_io
     TYPE(cp_logger_type), POINTER            :: logger
 
     CPASSERT(ASSOCIATED(pint_env))
-
+    
+    unit_nr = 0
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

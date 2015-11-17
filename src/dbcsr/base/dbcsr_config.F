@@ -14,7 +14,6 @@
 ! *****************************************************************************
 MODULE dbcsr_config
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
   USE kinds,                           ONLY: dp
@@ -51,16 +50,17 @@ MODULE dbcsr_config
   PUBLIC :: has_MPI
   PUBLIC :: has_acc
   PUBLIC :: mm_stack_size
-  PUBLIC :: mm_driver, mm_host_driver,&
+  PUBLIC :: mm_driver,&
+            mm_driver_auto,&
             mm_driver_blas,&
             mm_driver_matmul,&
             mm_driver_smm,&
-            mm_driver_acc
-  PUBLIC :: mm_async
-  PUBLIC :: mm_name_blas,&
+            mm_driver_xsmm
+  PUBLIC :: mm_name_auto,&
+            mm_name_blas,&
             mm_name_matmul,&
             mm_name_smm,&
-            mm_name_acc
+            mm_name_xsmm
   PUBLIC :: use_mpi_rma, use_mpi_filtering, use_comm_thread, comm_thread_load
   PUBLIC :: max_elements_per_block, avg_elements_images
   !
@@ -80,30 +80,36 @@ MODULE dbcsr_config
   REAL(KIND=dp), PARAMETER             :: default_resize_factor = 1.2_dp
 
   ! Possible drivers to use for matrix multiplications
+  INTEGER, PARAMETER :: mm_driver_auto       = 0
   INTEGER, PARAMETER :: mm_driver_matmul     = 1
   INTEGER, PARAMETER :: mm_driver_blas       = 2
   INTEGER, PARAMETER :: mm_driver_smm        = 3
-  INTEGER, PARAMETER :: mm_driver_acc       = 5
+  INTEGER, PARAMETER :: mm_driver_xsmm       = 4
 
-  CHARACTER(len=*), PARAMETER :: mm_name_blas   = "BLAS",&
+  CHARACTER(len=*), PARAMETER :: mm_name_auto   = "AUTO",&
+                                 mm_name_blas   = "BLAS",&
                                  mm_name_matmul = "MATMUL",&
                                  mm_name_smm    = "SMM",&
-                                 mm_name_acc   = "ACC"
+                                 mm_name_xsmm   = "XSMM"
 
-  ! Then the capabilities are specified.
-
-  LOGICAL, PARAMETER :: has_blas = .TRUE.
+  INTEGER, SAVE :: mm_driver = mm_driver_blas
 
 #if defined (__HAS_smm_dnn)
-  LOGICAL, PARAMETER :: has_smm_gemm = .TRUE.
+  LOGICAL, PARAMETER :: has_smm = .TRUE.
 #else
-  LOGICAL, PARAMETER :: has_smm_gemm = .FALSE.
+  LOGICAL, PARAMETER :: has_smm = .FALSE.
 #endif
 
 #if defined(__HAS_smm_vec)
   LOGICAL, PARAMETER :: has_smm_vec = .TRUE.
 #else
   LOGICAL, PARAMETER :: has_smm_vec = .FALSE.
+#endif
+
+#if defined(__LIBXSMM)
+  LOGICAL, PARAMETER :: has_xsmm = .TRUE.
+#else
+  LOGICAL, PARAMETER :: has_xsmm = .FALSE.
 #endif
 
 #if defined (__DBCSR_ACC)
@@ -127,21 +133,12 @@ MODULE dbcsr_config
   ! Use MPI-allocated memory.
   LOGICAL, SAVE :: use_MPI_memory = has_MPI
 
-  ! Which driver to use for matrix multiplications.
-#if defined (__DBCSR_ACC)
-  INTEGER, SAVE :: mm_driver = mm_driver_acc
-#else
-  INTEGER, SAVE :: mm_driver = mm_driver_smm
-#endif
-
-  ! Which driver to use for matrix multiplications (on the host).
-  INTEGER, SAVE :: mm_host_driver = mm_driver_smm
-
-  ! Whether an accelerator is used.
-  LOGICAL, SAVE :: mm_async = .FALSE.
-
   ! Stack size to use for multiplication parameters
+#if defined(__HAS_smm_vec) || defined (__DBCSR_ACC)
+  INTEGER, SAVE :: mm_stack_size = 30000
+#else
   INTEGER, SAVE :: mm_stack_size = 1000
+#endif
 
   ! Default blocking parameter
   INTEGER, SAVE :: max_elements_per_block = 32
@@ -153,7 +150,7 @@ MODULE dbcsr_config
   INTEGER, SAVE :: nm_stacks = 3
   INTEGER, SAVE :: nn_stacks = 3
   INTEGER, SAVE :: nk_stacks = 3
-  
+
   ! RMA algorithm
   LOGICAL, SAVE :: use_mpi_rma = .FALSE.
 
@@ -201,45 +198,30 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !defaults
 
-    mm_stack_size = 1000
-    nm_stacks = 3
-    nn_stacks = 3
-    nk_stacks = 3
-
-    IF(has_smm_vec) THEN
-      mm_stack_size = 30000
-      nm_stacks = 3
-      nn_stacks = 3
-      nk_stacks = 3
-    ENDIF
-
     CALL timeset(routineN, error_handle)
+
     SELECT CASE (driver)
+    CASE (mm_driver_auto)
+       IF(has_xsmm) THEN
+          mm_driver = mm_driver_xsmm
+       ELSEIF(has_smm) THEN
+          mm_driver = mm_driver_smm
+       ELSE
+          mm_driver = mm_driver_blas ! always available
+       ENDIF
     CASE (mm_driver_matmul)
-       mm_driver = mm_driver_matmul
+       mm_driver = mm_driver_matmul ! always available
     CASE (mm_driver_blas)
-       CALL dbcsr_assert (has_blas,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Support for BLAS not compiled in.", __LINE__)
-       mm_driver = mm_driver_blas
+       mm_driver = mm_driver_blas ! always available
     CASE (mm_driver_smm)
+       IF(.NOT.has_smm) CPABORT("Support for libsmm not compiled in.")
        mm_driver = mm_driver_smm
-    CASE (mm_driver_acc)
-       CALL dbcsr_assert (has_acc,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Support for ACC not compiled in.", __LINE__)
-       mm_driver = mm_driver_acc
-       mm_stack_size = 30000
-       nm_stacks = 3
-       nn_stacks = 3
-       nk_stacks = 3
+    CASE (mm_driver_xsmm)
+       IF(.NOT.has_xsmm) CPABORT("Support for libxsmm not compiled in.")
+       mm_driver = mm_driver_xsmm
+    CASE DEFAULT
+       CPABORT("Unkown MM driver")
     END SELECT
-    mm_async = driver_is_async (mm_driver)
-    IF (mm_async) THEN
-       mm_host_driver = mm_driver_smm
-    ELSE
-       mm_host_driver = mm_driver
-    ENDIF
     CALL timestop(error_handle)
   END SUBROUTINE dbcsr_set_conf_mm_driver
 
@@ -582,22 +564,6 @@ CONTAINS
     load = comm_thread_load
   END FUNCTION dbcsr_get_conf_comm_thread_load
 
-
-! *****************************************************************************
-!> \brief ...
-!> \param driver ...
-!> \retval driver_is_async ...
-! *****************************************************************************
-  PURE FUNCTION driver_is_async (driver)
-    INTEGER, INTENT(IN)                      :: driver
-    LOGICAL                                  :: driver_is_async
-
-    driver_is_async = .FALSE.
-    SELECT CASE (driver)
-       CASE (mm_driver_acc)
-          driver_is_async = .TRUE.
-    END SELECT
-  END FUNCTION driver_is_async
 
 ! *****************************************************************************
 !> \brief Configure DBCSR driver with default values.

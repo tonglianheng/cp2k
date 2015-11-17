@@ -9,11 +9,16 @@
 !> \par History
 !>      02.2005 created [fawzi]
 !>           11.2006 modified so it might actually work [hforbert]
+!>           10.2015 added RPMD propagator
+!>           10.2015 added exact harmonic integrator [Felix Uhl]
 !> \note   quick & dirty rewrite of my python program
 ! *****************************************************************************
 MODULE pint_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE bibliography,                    ONLY: Ceriotti2010,&
+                                             Ceriotti2012,&
+                                             cite_reference
   USE cp_external_control,             ONLY: external_control
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_io_unit,&
@@ -44,7 +49,10 @@ MODULE pint_methods
   USE helium_sampling,                 ONLY: helium_do_run,&
                                              helium_step
   USE helium_types,                    ONLY: helium_solvent_type
-  USE input_constants,                 ONLY: transformation_normal,&
+  USE input_constants,                 ONLY: integrate_exact,&
+                                             integrate_numeric,&
+                                             propagator_rpmd,&
+                                             transformation_normal,&
                                              transformation_stage
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: &
@@ -78,6 +86,15 @@ MODULE pint_methods
                                              normalmode_env_create,&
                                              normalmode_init_masses,&
                                              normalmode_release
+  USE pint_piglet,                     ONLY: pint_calc_piglet_energy,&
+                                             pint_piglet_create,&
+                                             pint_piglet_init,&
+                                             pint_piglet_release,&
+                                             pint_piglet_step
+  USE pint_pile,                       ONLY: pint_calc_pile_energy,&
+                                             pint_pile_init,&
+                                             pint_pile_release,&
+                                             pint_pile_step
   USE pint_public,                     ONLY: pint_com_pos,&
                                              pint_levy_walk
   USE pint_staging,                    ONLY: staging_calc_uf_h,&
@@ -87,14 +104,10 @@ MODULE pint_methods
   USE pint_transformations,            ONLY: pint_f2uf,&
                                              pint_u2x,&
                                              pint_x2u
-  USE pint_types,                      ONLY: e_conserved_id,&
-                                             e_kin_thermo_id,&
-                                             e_kin_virial_id,&
-                                             e_potential_id,&
-                                             pint_env_type,&
-                                             thermostat_gle,&
-                                             thermostat_none,&
-                                             thermostat_nose
+  USE pint_types,                      ONLY: &
+       e_conserved_id, e_kin_thermo_id, e_kin_virial_id, e_potential_id, &
+       pint_env_type, thermostat_gle, thermostat_none, thermostat_nose, &
+       thermostat_piglet, thermostat_pile
   USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                              rep_env_create
   USE replica_types,                   ONLY: rep_env_release,&
@@ -121,11 +134,14 @@ CONTAINS
 !> \par    History
 !>           Fixed some bugs [hforbert]
 !>           Added normal mode transformation [hforbert]
+!>           10.2015 Added RPMD propagator and harmonic integrator [Felix Uhl]
 !> \author fawzi
 !> \note   Might return an unassociated pointer in parallel on the processors
 !>         that are not needed.
 ! *****************************************************************************
   SUBROUTINE pint_create(pint_env,input,input_declaration,para_env)
+
+
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(section_vals_type), POINTER         :: input
     TYPE(section_type), POINTER              :: input_declaration
@@ -135,19 +151,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: output_file_name, project_name
-    INTEGER                                  :: handle, iat, idim, idir, &
-                                                ierr, itmp, nrep, prep, stat
+    CHARACTER(len=default_string_length)     :: msg
+    INTEGER                                  :: handle, iat, ibead, idim, &
+                                                idir, ierr, itmp, nrep, prep, &
+                                                stat
     LOGICAL                                  :: explicit, failure, ltmp, &
                                                 wrong_input
-    REAL(kind=dp)                            :: mass
+    REAL(kind=dp)                            :: dt, mass, omega
     REAL(kind=dp), DIMENSION(3, 2)           :: seed
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(section_vals_type), POINTER         :: gle_section, nose_section, &
-                                                pint_section, &
-                                                transform_section
+    TYPE(section_vals_type), POINTER :: gle_section, nose_section, &
+      piglet_section, pile_section, pint_section, transform_section
 
     CALL timeset(routineN,handle)
 
@@ -168,7 +185,8 @@ CONTAINS
          (MOD(prep*nrep,para_env%num_pe) /= 0) ) THEN
        prep = para_env%num_pe/gcd(para_env%num_pe,nrep)
        IF (para_env%ionode) THEN
-          WRITE (*,*) "PINT WARNING: Adjusting number of processors per replica to ",prep
+          WRITE (UNIT=msg,FMT=*) "PINT WARNING: Adjusting number of processors per replica to ",prep
+          CPWARN(msg)
        END IF
     END IF
 
@@ -196,11 +214,13 @@ CONTAINS
     pint_env%id_nr=last_pint_id
     pint_env%ref_count=1
     NULLIFY(pint_env%replicas,pint_env%input,pint_env%staging_env,&
-            pint_env%normalmode_env)
+            pint_env%normalmode_env,pint_env%propagator)
     pint_env%p=nrep
     pint_env%replicas => rep_env
     pint_env%ndim=rep_env%ndim
     pint_env%input => input
+
+    
     CALL section_vals_retain(pint_env%input)
 
     ! get first step, last step, number of steps, etc
@@ -229,6 +249,22 @@ CONTAINS
     CALL section_vals_val_get(pint_section,"Temp",r_val=pint_env%kT)
     CALL section_vals_val_get(pint_section,"T_TOL",&
          r_val=pint_env%t_tol)
+
+    ALLOCATE(pint_env%propagator)
+    CALL section_vals_val_get(pint_section,"propagator",&
+         i_val=pint_env%propagator%prop_kind)
+    !Initialize simulation temperature depending on the propagator
+    !As well as the scaling factor for the physical potential
+    IF (pint_env%propagator%prop_kind == propagator_rpmd) THEN
+       pint_env%propagator%temp_phys2sim = REAL(pint_env%p,dp) 
+       pint_env%propagator%physpotscale = 1.0_dp
+    ELSE
+       pint_env%propagator%temp_phys2sim = 1.0_dp
+       pint_env%propagator%physpotscale = 1.0_dp / REAL(pint_env%p,dp)
+    END IF
+    pint_env%propagator%temp_sim2phys = 1.0_dp/pint_env%propagator%temp_phys2sim
+    pint_env%kT = pint_env%kT * pint_env%propagator%temp_phys2sim
+
     CALL section_vals_val_get(pint_section,"transformation",&
          i_val=pint_env%transform)
 
@@ -239,6 +275,9 @@ CONTAINS
     nose_section => section_vals_get_subs_vals(input,"MOTION%PINT%NOSE")
     CALL section_vals_get(nose_section, explicit=explicit)
     IF(explicit) THEN
+      IF (pint_env%propagator%prop_kind == propagator_rpmd) THEN
+         CPABORT("RPMD Propagator with Nose-thermostat not implemented!")
+      END IF
       CALL section_vals_val_get(nose_section,"nnos",i_val=pint_env%nnos)
       IF(pint_env%nnos>0)THEN
         pint_env%pimd_thermostat = thermostat_nose
@@ -258,7 +297,7 @@ CONTAINS
       END IF
     END IF
 
-    pint_env%beta=1._dp/pint_env%kT
+    pint_env%beta=1._dp/(pint_env%kT*pint_env%propagator%temp_sim2phys)
 !TODO
 ! v_tol not in current input structure
 ! should also probably be part of nose_section
@@ -281,6 +320,8 @@ CONTAINS
     pint_env%e_kin_beads=0._dp
     pint_env%e_pot_t=0._dp
     pint_env%e_gle=0._dp
+    pint_env%e_pile=0._dp
+    pint_env%e_piglet=0._dp
     pint_env%e_kin_t=0._dp
     pint_env%energy(:) = 0.0_dp
 
@@ -292,6 +333,7 @@ CONTAINS
          pint_env%f(pint_env%p,pint_env%ndim),          &
          pint_env%external_f(pint_env%p,pint_env%ndim), &
          pint_env%ux(pint_env%p,pint_env%ndim),         &
+         pint_env%ux_t(pint_env%p,pint_env%ndim),       &
          pint_env%uv(pint_env%p,pint_env%ndim),         &
          pint_env%uv_t(pint_env%p,pint_env%ndim),       &
          pint_env%uv_new(pint_env%p,pint_env%ndim),     &
@@ -306,6 +348,7 @@ CONTAINS
     pint_env%f        = 0._dp
     pint_env%external_f= 0._dp
     pint_env%ux       = 0._dp
+    pint_env%ux_t     = 0._dp
     pint_env%uv       = 0._dp
     pint_env%uv_t     = 0._dp
     pint_env%uv_new   = 0._dp
@@ -324,7 +367,7 @@ CONTAINS
        transform_section => section_vals_get_subs_vals(input,&
           "MOTION%PINT%NORMALMODE")
        CALL normalmode_env_create(pint_env%normalmode_env,&
-          transform_section,p=pint_env%p,kT=pint_env%kT)
+          transform_section,p=pint_env%p,kT=pint_env%kT,propagator=pint_env%propagator%prop_kind)
        wrong_input=pint_env%nrespa*twopi/(SQRT(pint_env%p/pint_env%normalmode_env%modefactor)*pint_env%kT)/pint_env%dt>10
        CPASSERT(wrong_input)
     END IF
@@ -394,6 +437,105 @@ CONTAINS
       END IF
     END IF
 
+    !Setup pile thermostat
+    NULLIFY(pint_env%pile_therm)
+    pile_section => section_vals_get_subs_vals(input,"MOTION%PINT%PILE")
+    CALL section_vals_get(pile_section, explicit=explicit)
+    IF (explicit) THEN
+       CALL cite_reference(Ceriotti2010)
+       CALL section_vals_val_get(pint_env%input,&
+           "MOTION%PINT%INIT%THERMOSTAT_SEED",&
+            i_val=pint_env%thermostat_rng_seed)
+       IF (pint_env%pimd_thermostat==thermostat_none) THEN
+          pint_env%pimd_thermostat=thermostat_pile
+          CALL pint_pile_init(pile_therm=pint_env%pile_therm,&
+                              pint_env=pint_env,&
+                              normalmode_env=pint_env%normalmode_env,&
+                              section=pile_section)
+       ELSE
+          CPABORT("PILE thermostat can't be used with another thermostat.")
+       END IF
+    END IF
+
+    !Setup PIGLET thermostat
+    NULLIFY(pint_env%piglet_therm)
+    piglet_section => section_vals_get_subs_vals(input,"MOTION%PINT%PIGLET")
+    CALL section_vals_get(piglet_section, explicit=explicit)
+    IF (explicit) THEN
+       CALL cite_reference(Ceriotti2012)
+       CALL section_vals_val_get(pint_env%input,&
+           "MOTION%PINT%INIT%THERMOSTAT_SEED",&
+           i_val=pint_env%thermostat_rng_seed)
+       IF (pint_env%pimd_thermostat == thermostat_none) THEN
+          pint_env%pimd_thermostat = thermostat_piglet
+          CALL pint_piglet_create(pint_env%piglet_therm, &
+               pint_env, &
+               piglet_section)
+          CALL pint_piglet_init(pint_env%piglet_therm, &
+               pint_env,&
+               piglet_section, &
+               dt=pint_env%dt, para_env=para_env)
+       ELSE
+          CPABORT("PILE thermostat can't be used with another thermostat.")
+       END IF
+    END IF
+
+
+    !Initialize integrator scheme 
+    CALL section_vals_val_get(pint_section,"HARM_INT",i_val=pint_env%harm_integrator)
+       IF (pint_env%harm_integrator == integrate_exact) THEN
+          IF (pint_env%pimd_thermostat == thermostat_nose) THEN
+             WRITE(UNIT=msg,FMT=*) "PINT WARNING| Nose Thermostat only avaliable in " // & 
+                                   "the numeric harmonic integrator. Switching to numeric harmonic integrator."
+             CPWARN(msg)
+             pint_env%harm_integrator = integrate_numeric
+          END IF
+          IF (pint_env%pimd_thermostat == thermostat_gle) THEN
+             WRITE(UNIT=msg,FMT=*) "PINT WARNING| GLE Thermostat only avaliable in " // & 
+                                   "the numeric harmonic integrator. Switching to numeric harmonic integrator."
+             CPWARN(msg)
+             pint_env%harm_integrator = integrate_numeric
+          END IF
+       ELSE IF (pint_env%harm_integrator == integrate_numeric) THEN
+          IF (pint_env%pimd_thermostat == thermostat_pile) THEN
+             WRITE(UNIT=msg,FMT=*) "PINT WARNING| PILE Thermostat only avaliable in " // &
+                                   "the exact harmonic integrator. Switching to exact harmonic integrator."
+             CPWARN(msg)
+             pint_env%harm_integrator = integrate_exact
+          END IF
+          IF (pint_env%pimd_thermostat == thermostat_piglet) THEN
+             WRITE(UNIT=msg,FMT=*) "PINT WARNING| PIGLET Thermostat only avaliable in " // &
+                                   "the exact harmonic integrator. Switching to exact harmonic integrator."
+             CPWARN(msg)
+             pint_env%harm_integrator = integrate_exact
+          END IF
+       END IF
+
+       IF (pint_env%harm_integrator == integrate_exact) THEN
+          IF (pint_env%nrespa /= 1) THEN
+             pint_env%nrespa = 1
+             WRITE (UNIT=msg,FMT=*) "PINT WARNING| Adjusting NRESPA to 1 for exact harmonic integration."
+             CPWARN(msg)
+          END IF
+          NULLIFY(pint_env%wsinex)
+          ALLOCATE(pint_env%wsinex(pint_env%p))
+          NULLIFY(pint_env%iwsinex)
+          ALLOCATE(pint_env%iwsinex(pint_env%p))
+          NULLIFY(pint_env%cosex)
+          ALLOCATE(pint_env%cosex(pint_env%p))
+          dt=pint_env%dt/REAL(pint_env%nrespa,KIND=dp)
+          !Centroid mode shoud not be propagated
+          pint_env%wsinex(1) = 0.0_dp
+          pint_env%iwsinex(1) = dt
+          pint_env%cosex(1) = 1.0_dp
+          DO ibead = 2, pint_env%p
+             omega = SQRT(pint_env%normalmode_env%lambda(ibead))
+             pint_env%wsinex(ibead)  = SIN(omega*dt)*omega
+             pint_env%iwsinex(ibead) = SIN(omega*dt)/omega
+             pint_env%cosex(ibead)   = COS(omega*dt)
+          END DO
+       END IF
+
     CALL section_vals_val_get(pint_section,"FIX_CENTROID_POS",&
          l_val=ltmp)
     IF ( ltmp .AND. (pint_env%transform .EQ. transformation_normal) ) THEN
@@ -462,6 +604,7 @@ CONTAINS
         DEALLOCATE(pint_env%mass_beads)
         DEALLOCATE(pint_env%mass_fict)
         DEALLOCATE(pint_env%ux)
+        DEALLOCATE(pint_env%ux_t)
         DEALLOCATE(pint_env%uv)
         DEALLOCATE(pint_env%uv_t)
         DEALLOCATE(pint_env%uv_new)
@@ -469,17 +612,29 @@ CONTAINS
         DEALLOCATE(pint_env%uf_h)
         DEALLOCATE(pint_env%rtmp_ndim)
         DEALLOCATE(pint_env%rtmp_natom)
+        DEALLOCATE(pint_env%propagator)
 
-        IF(pint_env%pimd_thermostat==thermostat_nose) THEN
+        IF (pint_env%harm_integrator==integrate_exact) THEN
+           DEALLOCATE(pint_env%wsinex)
+           DEALLOCATE(pint_env%iwsinex)
+           DEALLOCATE(pint_env%cosex)
+        END IF
+
+        SELECT CASE (pint_env%pimd_thermostat)
+        CASE (thermostat_nose)
           DEALLOCATE(pint_env%tx)
           DEALLOCATE(pint_env%tv)
           DEALLOCATE(pint_env%tv_t)
           DEALLOCATE(pint_env%tv_old)
           DEALLOCATE(pint_env%tv_new)
           DEALLOCATE(pint_env%tf)
-        ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
+        CASE (thermostat_gle) 
           CALL gle_dealloc(pint_env%gle)
-        END IF
+        CASE (thermostat_pile)
+          CALL pint_pile_release(pint_env%pile_therm)
+        CASE (thermostat_piglet) 
+          CALL pint_piglet_release(pint_env%piglet_therm)
+        END SELECT
 
         DEALLOCATE(pint_env%Q)
 
@@ -1081,7 +1236,7 @@ CONTAINS
     END IF
 
     unit_conv = cp_unit_from_cp2k(1.0_dp,"K")
-    WRITE(stmp1,'(F10.2)') target_t * unit_conv
+    WRITE(stmp1,'(F10.2)') target_t * pint_env%propagator%temp_sim2phys * unit_conv
     msg = "Bead velocities initialization:"
     IF ( done_init ) THEN
       msg = TRIM(msg)//" input structure"
@@ -1097,9 +1252,9 @@ CONTAINS
 
     IF ( done_init .AND. done_quench ) THEN
       msg = "WARNING: exclusive options requested (velocity restart and quenching)"
-      CALL pint_write_line(msg)
+      CPWARN(msg)
       msg = "WARNING: velocity restart took precedence"
-      CALL pint_write_line(msg)
+      CPWARN(msg)
     END IF
 
     IF ( (.NOT. done_init) .AND. (.NOT. done_quench) ) THEN
@@ -1108,11 +1263,11 @@ CONTAINS
         WRITE(stmp2,'(F10.2)') target_t * unit_conv
         msg = "Scaled initial velocities from "//TRIM(ADJUSTL(stmp1))//&
               " to "//TRIM(ADJUSTL(stmp2))//" K as requested."
-        CALL pint_write_line(msg)
+        CPWARN(msg)
       END IF
       IF ( done_sped ) THEN
         msg = "Added random component to the initial centroid velocities."
-        CALL pint_write_line(msg)
+        CPWARN(msg)
       END IF
     END IF
 
@@ -1269,8 +1424,7 @@ CONTAINS
     CALL pint_calc_e_vir(pint_env)
     DO idim=1,SIZE(pint_env%uf_h,2)
       DO ib=pint_env%first_propagated_mode,SIZE(pint_env%uf_h,1)
-        pint_env%uf_h(ib,idim)=pint_env%uf_h(ib,idim)&
-             +REAL(pint_env%nrespa,dp)*pint_env%uf(ib,idim)
+         pint_env%uf(ib,idim) = REAL(pint_env%nrespa,dp)*pint_env%uf(ib,idim)
       END DO
     END DO
 
@@ -1392,6 +1546,7 @@ CONTAINS
 !> \param helium_solvent ...
 !> \par    History
 !>           various bug fixes [hforbert]
+!>           10.2015 Added RPMD propagator and harmonic integrator [Felix Uhl]
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_step(pint_env,helium_solvent)
@@ -1415,129 +1570,235 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(pint_env))
 
-  rn=REAL(pint_env%nrespa,dp)
-  dti=pint_env%dt/rn
-  dti2=dti/2._dp
-  tdti=2.*dti
-  dti22=dti**2/2._dp
+    rn=REAL(pint_env%nrespa,dp)
+    dti=pint_env%dt/rn
+    dti2=dti/2._dp
+    tdti=2.*dti
+    dti22=dti**2/2._dp
 
-  DO iresp=1,pint_env%nrespa
-     ! integrate bead positions, first_propagated_mode = { 1, 2 }
-     IF (pint_env%pimd_thermostat==thermostat_nose) THEN
-       DO i = pint_env%first_propagated_mode, pint_env%p
-         pint_env%ux(i,:) = pint_env%ux(i,:) + &
-                            dti*pint_env%uv(i,:) + &
-                            dti22*(pint_env%uf_h(i,:) - &
-                            pint_env%uv(i,:)*pint_env%tv(1,i,:))
-       END DO
-       pint_env%tx=pint_env%tx+dti*pint_env%tv+dti22*pint_env%tf
-     ELSE
-        DO i = pint_env%first_propagated_mode, pint_env%p
-          pint_env%ux(i,:) = pint_env%ux(i,:) + &
-                             dti*pint_env%uv(i,:) + &
-                             dti22*pint_env%uf_h(i,:)
-        END DO
-     END IF
-     ! integrate nh vars
-     ! integrate v at half step
-     IF (pint_env%pimd_thermostat==thermostat_nose) THEN
-        pint_env%uv_t=pint_env%uv+dti2* &
-                      (pint_env%uf_h-pint_env%uv*pint_env%tv(1,:,:))
-        tmp => pint_env%tv_t
-        pint_env%tv_t => pint_env%tv
-        pint_env%tv => tmp
-
-        pint_env%tv=pint_env%tv_old+tdti*pint_env%tf
-        pint_env%tv_old=pint_env%tv_t
-        pint_env%tv_t=pint_env%tv_t+dti2*pint_env%tf
-     ELSE
-        pint_env%uv_t=pint_env%uv+dti2*pint_env%uf_h
-     END IF
-
-
-     ! calc forces at new pos
-     CALL pint_calc_uf_h(pint_env=pint_env,e_h=e_h)
-     IF (iresp==pint_env%nrespa) THEN
-        CALL pint_u2x(pint_env)
-        CALL pint_calc_f(pint_env)
-
-        ! perform helium step and add helium forces
-        IF (PRESENT(helium_solvent)) THEN
-          IF (ASSOCIATED(helium_solvent)) THEN
-            helium_solvent%current_step = pint_env%iter
-            helium_solvent%origin = pint_com_pos(pint_env)
-            CALL helium_step( helium_solvent, pint_env)
-            pint_env%f(:,:)=pint_env%f(:,:)+helium_solvent%force_avrg(:,:)
+    SELECT CASE (pint_env%harm_integrator)
+    CASE (integrate_numeric)
+       DO iresp=1,pint_env%nrespa
+          ! integrate bead positions, first_propagated_mode = { 1, 2 }
+          ! Nose needs an extra step
+          IF (pint_env%pimd_thermostat == thermostat_nose) THEN
+            DO i = pint_env%first_propagated_mode, pint_env%p
+              pint_env%ux(i,:) = pint_env%ux(i,:) - &
+                                 dti22*pint_env%uv(i,:)*pint_env%tv(1,i,:)
+            END DO
+            pint_env%tx=pint_env%tx+dti*pint_env%tv+dti22*pint_env%tf
           END IF
-        END IF
+          !Integrate position in harmonic springs (uf_h) and physical potential
+          !(uf)
+          DO i = pint_env%first_propagated_mode, pint_env%p
+              pint_env%ux_t(i,:) = pint_env%ux(i,:) + &
+                                 dti*pint_env%uv(i,:) + &
+                                 dti22*(pint_env%uf_h(i,:) + &
+                                 pint_env%uf(i,:))
+          END DO
 
-        CALL pint_f2uf(pint_env)
-        pint_env%uf_h=pint_env%uf_h+rn*pint_env%uf
-     END IF
+          ! apply thermostats to velocities
+          SELECT CASE (pint_env%pimd_thermostat)
+          CASE (thermostat_nose) 
+             pint_env%uv_t=pint_env%uv-dti2* &
+                           pint_env%uv*pint_env%tv(1,:,:)
+             tmp => pint_env%tv_t
+             pint_env%tv_t => pint_env%tv
+             pint_env%tv => tmp
+             pint_env%tv=pint_env%tv_old+tdti*pint_env%tf
+             pint_env%tv_old=pint_env%tv_t
+             pint_env%tv_t=pint_env%tv_t+dti2*pint_env%tf
+          CASE DEFAULT
+             pint_env%uv_t=pint_env%uv
+          END SELECT
 
-     ! set the centroid forces to 0 if FIX_CENTROID_POS
-     IF ( pint_env%first_propagated_mode .EQ. 2 ) THEN
-       pint_env%uf_h(1,:) = 0.0_dp
-     END IF
+          !Integrate hamonic velocities and physical velocities
+          pint_env%uv_t=pint_env%uv_t+dti2*(pint_env%uf_h + pint_env%uf)
+          ! physical forces are only applied in first respa step. 
+          pint_env%uf = 0.0_dp
+          ! calc harmonic forces at new pos
+          pint_env%ux=pint_env%ux_t
+          CALL pint_calc_uf_h(pint_env=pint_env,e_h=e_h)
+          pint_env%uv_t=pint_env%uv_t+dti2*(pint_env%uf_h + pint_env%uf)
 
-     ! add the new forces to v
-     pint_env%uv_t=pint_env%uv_t+dti2*pint_env%uf_h
-     ! iterate v to convergence
-     IF (pint_env%pimd_thermostat==thermostat_nose) THEN
-        DO i=1,6
-           tol=0._dp
-           pint_env%uv_new=pint_env%uv_t/(1.+dti2*pint_env%tv(1,:,:))
-           DO idim=1,pint_env%ndim
-              DO ib=1,pint_env%p
-                 pint_env%tf(1,ib,idim)=(pint_env%mass_fict(ib,idim)*&
-                      pint_env%uv_new(ib,idim)**2-pint_env%kT)/&
-                      pint_env%Q(ib)
-              END DO
-           END DO
+          ! For last respa step include integration of physical and helium
+          ! forces
+          IF (iresp==pint_env%nrespa) THEN
+             CALL pint_u2x(pint_env)
+             CALL pint_calc_f(pint_env)
+             ! perform helium step and add helium forces
+             IF (PRESENT(helium_solvent)) THEN
+               IF (ASSOCIATED(helium_solvent)) THEN
+                 helium_solvent%current_step = pint_env%iter
+                 helium_solvent%origin = pint_com_pos(pint_env)
+                 CALL helium_step( helium_solvent, pint_env)
+                 pint_env%f(:,:)=pint_env%f(:,:)+helium_solvent%force_avrg(:,:)
+               END IF
+             END IF
 
-           DO idim=1,pint_env%ndim
-              DO ib=1,pint_env%p
-                 DO inos=1,pint_env%nnos-1
-                    pint_env%tv_new(inos,ib,idim)=&
-                         (pint_env%tv_t(inos,ib,idim)+dti2*pint_env%tf(inos,ib,idim))/&
-                         (1._dp+dti2*pint_env%tv(inos+1,ib,idim))
-                    pint_env%tf(inos+1,ib,idim)=&
-                         (pint_env%tv_new(inos,ib,idim)**2-&
-                         pint_env%kT/pint_env%Q(ib))
-                    tol=MAX(tol,ABS(pint_env%tv(inos,ib,idim)&
-                         -pint_env%tv_new(inos,ib,idim)))
-                 END DO
-                 pint_env%tv_new(pint_env%nnos,ib,idim)=&
-                      pint_env%tv_t(pint_env%nnos,ib,idim)+&
-                      dti2*pint_env%tf(pint_env%nnos,ib,idim)
-                 tol=MAX(tol,ABS(pint_env%tv(pint_env%nnos,ib,idim)&
-                      -pint_env%tv_new(pint_env%nnos,ib,idim)))
-                 tol=MAX(tol,ABS(pint_env%uv(ib,idim)&
-                      -pint_env%uv_new(ib,idim)))
-              END DO
-           END DO
+             CALL pint_f2uf(pint_env)
+             ! set the centroid forces to 0 if FIX_CENTROID_POS
+             IF ( pint_env%first_propagated_mode .EQ. 2 ) THEN
+               pint_env%uf(1,:) = 0.0_dp
+             END IF
+             !Scale physical forces and integrate velocities with physical
+             !forces
+             pint_env%uf = pint_env%uf*rn
+             pint_env%uv_t=pint_env%uv_t+dti2*pint_env%uf
+          END IF
 
-           pint_env%uv=pint_env%uv_new
-           pint_env%tv=pint_env%tv_new
-           IF (tol <= pint_env%v_tol) EXIT
-        END DO
-        DO inos=1,pint_env%nnos-1
-           pint_env%tf(inos,:,:)=pint_env%tf(inos,:,:)&
-                -pint_env%tv(inos,:,:)*pint_env%tv(inos+1,:,:)
-        END DO
-     ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
-        CALL pint_gle_step(pint_env)
-        pint_env%uv=pint_env%uv_t
-     ELSE
-        pint_env%uv=pint_env%uv_t
-     ENDIF
-  END DO
+          ! Apply second half of thermostats
+          SELECT CASE (pint_env%pimd_thermostat)
+          CASE (thermostat_nose)
+             DO i=1,6
+                tol=0._dp
+                pint_env%uv_new=pint_env%uv_t/(1.+dti2*pint_env%tv(1,:,:))
+                DO idim=1,pint_env%ndim
+                   DO ib=1,pint_env%p
+                      pint_env%tf(1,ib,idim)=(pint_env%mass_fict(ib,idim)*&
+                           pint_env%uv_new(ib,idim)**2-pint_env%kT)/&
+                           pint_env%Q(ib)
+                   END DO
+                END DO
 
-  ! calculate the energy components
-  CALL pint_calc_energy( pint_env)
+                DO idim=1,pint_env%ndim
+                   DO ib=1,pint_env%p
+                      DO inos=1,pint_env%nnos-1
+                         pint_env%tv_new(inos,ib,idim)=&
+                              (pint_env%tv_t(inos,ib,idim)+dti2*pint_env%tf(inos,ib,idim))/&
+                              (1._dp+dti2*pint_env%tv(inos+1,ib,idim))
+                         pint_env%tf(inos+1,ib,idim)=&
+                              (pint_env%tv_new(inos,ib,idim)**2-&
+                              pint_env%kT/pint_env%Q(ib))
+                         tol=MAX(tol,ABS(pint_env%tv(inos,ib,idim)&
+                              -pint_env%tv_new(inos,ib,idim)))
+                      END DO
+                      pint_env%tv_new(pint_env%nnos,ib,idim)=&
+                           pint_env%tv_t(pint_env%nnos,ib,idim)+&
+                           dti2*pint_env%tf(pint_env%nnos,ib,idim)
+                      tol=MAX(tol,ABS(pint_env%tv(pint_env%nnos,ib,idim)&
+                           -pint_env%tv_new(pint_env%nnos,ib,idim)))
+                      tol=MAX(tol,ABS(pint_env%uv(ib,idim)&
+                           -pint_env%uv_new(ib,idim)))
+                   END DO
+                END DO
 
-  ! check that the number of MD steps matches
-  ! the number of force evaluations done so far
+                pint_env%uv=pint_env%uv_new
+                pint_env%tv=pint_env%tv_new
+                IF (tol <= pint_env%v_tol) EXIT
+             END DO
+             DO inos=1,pint_env%nnos-1
+                pint_env%tf(inos,:,:)=pint_env%tf(inos,:,:)&
+                     -pint_env%tv(inos,:,:)*pint_env%tv(inos+1,:,:)
+             END DO
+          CASE (thermostat_gle) 
+             CALL pint_gle_step(pint_env)
+             pint_env%uv=pint_env%uv_t
+          CASE DEFAULT
+             pint_env%uv=pint_env%uv_t
+          END SELECT
+       END DO
+    CASE (integrate_exact)
+       ! The Liouvillian splitting is as follows:
+       ! 1. Thermostat
+       ! 2. 0.5*physical integration
+       ! 3. Exact harmonic integration
+       ! 4. 0.5*physical integration
+       ! 5. Thermostat
+
+       ! 1. Apply thermostats
+       SELECT CASE (pint_env%pimd_thermostat)
+       CASE (thermostat_pile)
+           CALL pint_pile_step(vold=pint_env%uv,&
+                               vnew=pint_env%uv_t,&
+                               p=pint_env%p,&
+                               ndim=pint_env%ndim,&
+                               first_mode=pint_env%first_propagated_mode,&
+                               masses=pint_env%mass_fict,&
+                               pile_therm=pint_env%pile_therm)
+       CASE (thermostat_piglet)
+           CALL pint_piglet_step(vold=pint_env%uv, &
+                                 vnew=pint_env%uv_t, &
+                                 first_mode=pint_env%first_propagated_mode,&
+                                 masses=pint_env%mass_fict,&
+                                 piglet_therm=pint_env%piglet_therm)
+       CASE DEFAULT
+          pint_env%uv_t=pint_env%uv
+       END SELECT
+       
+       ! 2. 1/2*Physical integration
+       pint_env%uv_t = pint_env%uv_t + dti2*pint_env%uf
+
+       ! 3. Exact harmonic integration
+       IF (pint_env%first_propagated_mode == 1) THEN
+          ! The centroid is integrated via standard velocity-verlet
+          pint_env%ux_t(1,:) = pint_env%ux(1,:) + &
+                               dti*pint_env%uv_t(1,:) + &
+                               dti22*pint_env%uf_h(1,:)
+          pint_env%uv_t(1,:) = pint_env%uv_t(1,:) + &
+                               dti2*pint_env%uf_h(1,:)
+          
+       ELSE 
+          ! set velocities to zero for fixed centroids
+          pint_env%ux_t(1,:) = pint_env%ux(1,:)
+          pint_env%uv_t(1,:) = 0.0_dp
+       END IF
+
+       DO i = 2, pint_env%p
+          pint_env%ux_t(i,:) =   pint_env%cosex(i)   * pint_env%ux(i,:) &
+                               + pint_env%iwsinex(i) * pint_env%uv_t(i,:)
+          pint_env%uv_t(i,:) =   pint_env%cosex(i)   * pint_env%uv_t(i,:) &
+                               - pint_env%wsinex(i)  * pint_env%ux(i,:)
+       END DO
+       pint_env%ux = pint_env%ux_t
+       
+       ! 4. 1/2*Physical integration
+       pint_env%uf = 0.0_dp
+       CALL pint_u2x(pint_env)
+       CALL pint_calc_f(pint_env)
+       ! perform helium step and add helium forces
+       IF (PRESENT(helium_solvent)) THEN
+         IF (ASSOCIATED(helium_solvent)) THEN
+           helium_solvent%current_step = pint_env%iter
+           helium_solvent%origin = pint_com_pos(pint_env)
+           CALL helium_step( helium_solvent, pint_env)
+           pint_env%f(:,:)=pint_env%f(:,:)+helium_solvent%force_avrg(:,:)
+         END IF
+       END IF
+       CALL pint_f2uf(pint_env)
+       ! set the centroid forces to 0 if FIX_CENTROID_POS
+       IF ( pint_env%first_propagated_mode .EQ. 2 ) THEN
+         pint_env%uf(1,:) = 0.0_dp
+       END IF
+       pint_env%uv_t = pint_env%uv_t + dti2*pint_env%uf
+
+       ! 5. Apply thermostats
+       SELECT CASE (pint_env%pimd_thermostat)
+       CASE (thermostat_pile)
+           CALL pint_pile_step(vold=pint_env%uv_t,&
+                               vnew=pint_env%uv,&
+                               p=pint_env%p,&
+                               ndim=pint_env%ndim,&
+                               first_mode=pint_env%first_propagated_mode,&
+                               masses=pint_env%mass_fict,&
+                               pile_therm=pint_env%pile_therm)
+       CASE (thermostat_piglet)
+           CALL pint_piglet_step(vold=pint_env%uv_t, &
+                                 vnew=pint_env%uv, &
+                                 first_mode=pint_env%first_propagated_mode,&
+                                 masses=pint_env%mass_fict,&
+                                 piglet_therm=pint_env%piglet_therm)
+       CASE DEFAULT
+          pint_env%uv=pint_env%uv_t
+       END SELECT
+       
+    END SELECT
+
+    ! calculate the energy components
+    CALL pint_calc_energy( pint_env)
+
+    ! check that the number of MD steps matches
+    ! the number of force evaluations done so far
 !TODO make this check valid if we start from ITERATION != 0
 !     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
 !          f_env=f_env,new_error=new_error, failure=failure)
@@ -1573,25 +1834,32 @@ CONTAINS
     CALL pint_calc_e_kin_beads_u(pint_env)
     CALL pint_calc_e_vir(pint_env)
 
-    IF (pint_env%pimd_thermostat==thermostat_nose) THEN
+    SELECT CASE (pint_env%pimd_thermostat)
+    CASE (thermostat_nose)
       CALL pint_calc_nh_energy(pint_env)
-    ELSEIF (pint_env%pimd_thermostat==thermostat_gle) THEN
+    CASE (thermostat_gle)
       CALL pint_calc_gle_energy(pint_env)
-    END IF
+    CASE (thermostat_pile)
+      CALL pint_calc_pile_energy(pint_env)
+    CASE (thermostat_piglet)
+      CALL pint_calc_piglet_energy(pint_env)
+    END SELECT
 
     pint_env%energy(e_kin_thermo_id) = &
       0.5_dp * REAL(pint_env%p,dp) * REAL(pint_env%ndim,dp) * pint_env%kT - &
       pint_env%e_pot_h
 
-    pint_env%energy(e_potential_id) = &
-      SUM(pint_env%e_pot_bead) / REAL(pint_env%p,dp)
+    pint_env%energy(e_potential_id) = SUM(pint_env%e_pot_bead) 
 
     pint_env%energy(e_conserved_id) = &
-      pint_env%energy(e_potential_id) + &
+      pint_env%energy(e_potential_id)* pint_env%propagator%physpotscale + &
       pint_env%e_pot_h + &
       pint_env%e_kin_beads + &
       pint_env%e_pot_t + &
-      pint_env%e_kin_t + pint_env%e_gle
+      pint_env%e_kin_t + pint_env%e_gle + pint_env%e_pile + pint_env%e_piglet
+
+    pint_env%energy(e_potential_id) = &
+      pint_env%energy(e_potential_id) / REAL(pint_env%p,dp)
 
     RETURN
   END SUBROUTINE pint_calc_energy
@@ -1755,7 +2023,8 @@ CONTAINS
         res=res+(pint_env%x(ib,idim)-xcentroid)*pint_env%f(ib,idim)
       END DO
     END DO
-    res=0.5_dp*(REAL(pint_env%ndim,dp)*pint_env%kT-res/REAL(pint_env%p,dp))
+    res=0.5_dp*(REAL(pint_env%ndim,dp)* &
+        (pint_env%kT*pint_env%propagator%temp_sim2phys)-res/REAL(pint_env%p,dp))
     pint_env%energy(e_kin_virial_id) = res
     IF (PRESENT(e_vir)) e_vir=res
     RETURN
