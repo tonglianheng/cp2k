@@ -13,9 +13,9 @@ WFLAGS  = -Waliasing -Wampersand -Wc-binding-type -Wconversion \
           -Wunused-but-set-variable -Wunused-variable \
           -Werror -fsanitize=leak
 DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC -D__HAS_smm_dnn
-FCFLAGS  = -O1 -g -fcheck=bounds,do,recursion,pointer -ffree-form \
+FCFLAGS  = -O3 -g -fcheck=bounds,do,recursion,pointer -ffree-form \
            -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer \
-           -mtune=generic -std=f2003 \
+           -march=native -std=f2003 \
            $(DFLAGS) -I${FFTW3_INCLUDE} -I${OpenBLAS_INCLUDE} -I${LIBINT_INCLUDE} \
            -I${LIBXC_INCLUDE} $(WFLAGS)
 LDFLAGS  = $(FCFLAGS) -L${FFTW3_LIB} -L${OpenBLAS_LIB} -L${LIBXC_LIB} -L${LIBINT_LIB} -L${LIBSMM_LIB}
