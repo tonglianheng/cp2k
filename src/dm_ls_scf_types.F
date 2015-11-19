@@ -16,8 +16,7 @@ MODULE dm_ls_scf_types
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: ls_cluster_atomic,&
-                                             ls_cluster_molecular,&
-                                             ls_scf_pexsi
+                                             ls_cluster_molecular
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -137,6 +136,7 @@ MODULE dm_ls_scf_types
      TYPE(mixing_storage_type), POINTER :: mixing_store
 
      LOGICAL :: do_transport
+     LOGICAL :: do_pexsi
 
      TYPE(lib_pexsi_env) :: pexsi
 
@@ -193,7 +193,7 @@ CONTAINS
       CALL mixing_storage_release(ls_scf_env%mixing_store)
     ENDIF
 
-    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+    IF (ls_scf_env%do_pexsi) THEN
        CALL lib_pexsi_finalize(ls_scf_env%pexsi)
     ENDIF
 
