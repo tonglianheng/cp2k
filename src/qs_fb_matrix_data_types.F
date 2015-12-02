@@ -14,6 +14,12 @@ MODULE qs_fb_matrix_data_types
                                              fb_hash_table_nullify,&
                                              fb_hash_table_obj,&
                                              fb_hash_table_release
+  USE qs_fb_buffer_types, ONLY: fb_buffer_d_obj, &
+                                fb_buffer_add, &
+                                fb_buffer_create, &
+                                fb_buffer_retain, &
+                                fb_buffer_release
+
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -67,7 +73,8 @@ MODULE qs_fb_matrix_data_types
      INTEGER :: nblks
      INTEGER :: nencode
      TYPE(fb_hash_table_obj) :: ind
-     TYPE(fb_matrix_block), DIMENSION(:), POINTER :: blks => NULL()
+!     TYPE(fb_matrix_block), DIMENSION(:), POINTER :: blks => NULL()
+     TYPE(fb_buffer_d_obj) :: blks
   END TYPE fb_matrix_data_data
 
 ! *****************************************************************************
@@ -118,6 +125,8 @@ CONTAINS
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found)
     IF (found) THEN
+       
+       CP_ASSERT(nrows*ncols .LE. )
        ! matrix block aready stored, need to to reassign
        IF (ASSOCIATED(matrix_data%obj%blks(existing_ii)%p)) THEN
           DEALLOCATE(matrix_data%obj%blks(existing_ii)%p)

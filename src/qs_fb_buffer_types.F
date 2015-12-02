@@ -731,4 +731,27 @@ CONTAINS
     END IF
   END SUBROUTINE fb_buffer_d_get
 
+
+  SUBROUTINE fb_buffer_d_replace(buffer, i_slice, data)
+    TYPE(fb_buffer_d_obj), INTENT(INOUT) :: buffer
+    INTEGER, INTENT(IN) :: i_slice
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: data
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_buffer_d_replace', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: slice_size
+
+    slice_size = buffer%obj%disps(i_slice+1) - buffer%obj%disps(i_slice)
+    IF (SIZE(data) .NE. slice_size) THEN
+       CALL cp_abort(__LOCATION__, &
+                     "replacement data must be equal size to the " //&
+                     "original slice")
+    END IF
+    
+    
+
+  END SUBROUTINE fb_buffer_d_replace
+
+
 END MODULE qs_fb_buffer_types
