@@ -39,6 +39,7 @@ MODULE dbcsr_mm_hostdrv
                                              dbcsr_type_real_8,&
                                              dbcsr_work_type
   USE kinds,                           ONLY: dp,&
+                                             int_8,&
                                              real_4,&
                                              real_8,&
                                              sp
@@ -56,6 +57,7 @@ MODULE dbcsr_mm_hostdrv
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
 
+  PUBLIC :: dbcsr_mm_hostdrv_lib_init, dbcsr_mm_hostdrv_lib_finalize
   PUBLIC :: dbcsr_mm_hostdrv_process
   PUBLIC :: dbcsr_mm_hostdrv_type
   PUBLIC :: dbcsr_mm_hostdrv_init
@@ -68,6 +70,36 @@ MODULE dbcsr_mm_hostdrv
   END TYPE dbcsr_mm_hostdrv_type
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Initialize the library
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_hostdrv_lib_init()
+#if defined(__LIBXSMM)
+    USE libxsmm,                           ONLY:  libxsmm_init
+    !$OMP MASTER
+    CALL libxsmm_init()
+    !$OMP END MASTER
+    !$OMP BARRIER
+#endif
+  END SUBROUTINE dbcsr_mm_hostdrv_lib_init
+
+
+! *****************************************************************************
+!> \brief Finalize the library
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_hostdrv_lib_finalize()
+#if defined(__LIBXSMM)
+    USE libxsmm,                           ONLY:  libxsmm_finalize
+    !$OMP BARRIER
+    !$OMP MASTER
+    CALL libxsmm_finalize()
+    !$OMP END MASTER
+#endif
+  END SUBROUTINE dbcsr_mm_hostdrv_lib_finalize
+
 
 ! *****************************************************************************
 !> \brief Initialize the library
@@ -92,6 +124,7 @@ CONTAINS
 
   END SUBROUTINE dbcsr_mm_hostdrv_init
 
+
 ! *****************************************************************************
 !> \brief Calls the various drivers that process the stack.
 !>
@@ -102,9 +135,10 @@ CONTAINS
 !> \param stack_size ...
 !> \param stack_descr ...
 !> \param success ...
+!> \param used_smm ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_process(this, left, right, params, stack_size, &
-       stack_descr, success)
+       stack_descr, success, used_smm)
     TYPE(dbcsr_mm_hostdrv_type), &
       INTENT(INOUT)                          :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
@@ -112,7 +146,7 @@ CONTAINS
     INTEGER, DIMENSION(1:dbcsr_ps_width, &
       stack_size), INTENT(INOUT)             :: params
     TYPE(stack_descriptor_type), INTENT(IN)  :: stack_descr
-    LOGICAL, INTENT(OUT)                     :: success
+    LOGICAL, INTENT(OUT)                     :: success, used_smm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_hostdrv_process', &
       routineP = moduleN//':'//routineN
@@ -126,6 +160,7 @@ CONTAINS
        CALL timeset (routineN, error_handle)
 
     success = .TRUE. !host driver never failes...hopefully
+    used_smm = .FALSE.
 
     IF (dbg) THEN
        CALL RANDOM_NUMBER (rnd)
@@ -183,19 +218,19 @@ CONTAINS
        CASE (dbcsr_type_real_4)
           CALL smm_process_mm_stack_s (stack_descr, params, &
                stack_size, &
-               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp)
+               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp, used_smm)
        CASE (dbcsr_type_real_8)
           CALL smm_process_mm_stack_d (stack_descr, params,&
                stack_size,&
-               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp)
+               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp, used_smm)
        CASE (dbcsr_type_complex_4)
           CALL smm_process_mm_stack_c (stack_descr, params,&
                stack_size,&
-               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp)
+               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp, used_smm)
        CASE (dbcsr_type_complex_8)
           CALL smm_process_mm_stack_z (stack_descr, params,&
                stack_size,&
-               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
+               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp, used_smm)
        CASE default
           CPABORT("Invalid data type")
        END SELECT
@@ -204,16 +239,16 @@ CONTAINS
        SELECT CASE (this%data_area%d%data_type)
        CASE (dbcsr_type_real_4)
           CALL xsmm_process_mm_stack_s (stack_descr, params, stack_size, &
-               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp)
+               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp, used_smm)
        CASE (dbcsr_type_real_8)
           CALL xsmm_process_mm_stack_d (stack_descr, params, stack_size,&
-               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp)
+               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp, used_smm)
        CASE (dbcsr_type_complex_4)
           CALL xsmm_process_mm_stack_c (stack_descr, params, stack_size,&
-               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp)
+               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp, used_smm)
        CASE (dbcsr_type_complex_8)
-          CALL xsmm_process_mm_stack_z (stack_descr, params, stack_size,&
-               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
+          CALL xsmm_process_mm_stack_z (stack_descr, params, stack_size, &
+               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp, used_smm)
        CASE default
           CPABORT("Invalid data type")
        END SELECT

@@ -19,7 +19,7 @@ enable_tsan=false
 mpichoice=mpich
 mpich_ver=3.1.2
 openmpi_ver=1.8.6
-openblas_ver=v0.2.14-0-gd0c51c4
+openblas_ver=0.2.15
 scalapack_ver=2.0.2
 lapack_ver=3.5.0
 libxc_ver=2.2.2
@@ -43,6 +43,7 @@ lcov_ver=1.11
 #gcc_ver=4.9.3
 #gcc_ver=5.1.0
 gcc_ver=5.2.0
+make_ver=4.1
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -68,7 +69,7 @@ while [ $# -ge 1 ]; do
       echo "                            finding/testing/debugging threading issues during development."
       echo "  --enable-gcc-trunk        use a non-released, development version of gcc for testing."
       echo ""
-      echo "For more information visit: <http://cp2k.org>"
+      echo "For more information visit: <https://www.cp2k.org/>"
       exit 0;;
    -*)
       echo "ERROR: Invalid command line flag $1 found"
@@ -123,11 +124,25 @@ export F90FLAGS="-O2 -g -Wno-error"
 export F77FLAGS="-O2 -g -Wno-error"
 export CXXFLAGS="-O2 -g -Wno-error"
 
+echo "==================== Installing make ================="
+if [ -f make-${make_ver}.tar.gz  ]; then
+   echo "Installation already started, skipping it."
+else
+   wget https://ftp.gnu.org/gnu/make/make-${make_ver}.tar.gz
+   checksum make-${make_ver}.tar.gz
+   tar -xzf make-${make_ver}.tar.gz
+   cd make-${make_ver}
+   ./configure --prefix=${INSTALLDIR} >& config.log
+   make -j $nprocs >& make.log
+   make -j $nprocs install >& install.log
+   cd ..
+fi
+
 echo "==================== Installing binutils ================="
 if [ -f binutils-${binutils_ver}.tar.gz  ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://ftp.gnu.org/gnu/binutils/binutils-${binutils_ver}.tar.gz
+   wget https://ftp.gnu.org/gnu/binutils/binutils-${binutils_ver}.tar.gz
    checksum binutils-${binutils_ver}.tar.gz
    tar -xzf binutils-${binutils_ver}.tar.gz
    cd binutils-${binutils_ver}
@@ -141,7 +156,7 @@ echo "==================== Installing valgrind ================="
 if [ -f valgrind-${valgrind_ver}.tar.bz2 ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
+   wget https://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
    checksum valgrind-${valgrind_ver}.tar.bz2
    tar -xjf valgrind-${valgrind_ver}.tar.bz2
    cd valgrind-${valgrind_ver}
@@ -155,7 +170,7 @@ echo "==================== Installing lcov ====================="
 if [ -f lcov-${lcov_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/lcov-${lcov_ver}.tar.gz
+   wget https://www.cp2k.org/static/downloads/lcov-${lcov_ver}.tar.gz
    checksum lcov-${lcov_ver}.tar.gz
    tar -xzf lcov-${lcov_ver}.tar.gz
    cd lcov-${lcov_ver}
@@ -168,7 +183,7 @@ echo "================== Installing CMake ================="
 if [ -f cmake-${cmake_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/cmake-${cmake_ver}.tar.gz
+   wget https://www.cp2k.org/static/downloads/cmake-${cmake_ver}.tar.gz
    checksum cmake-${cmake_ver}.tar.gz
    tar -xzf cmake-${cmake_ver}.tar.gz
    cd cmake-${cmake_ver}
@@ -179,13 +194,12 @@ else
 fi
 
 echo "==================== Installing gcc ======================"
-if [ -f gcc-${gcc_ver}.tar.gz -o -f gcc-${gcc_ver}.zip ]; then
+if [ -f gcc-${gcc_ver}.tar.gz -o -d gcc-master ]; then
    echo "Installation already started, skipping it."
 else
    if [ "${gcc_ver}" == "master" ]; then
       # no check since this follows the gcc trunk svn repo and changes constantly
-      wget -O gcc-master.zip https://github.com/gcc-mirror/gcc/archive/master.zip
-      unzip -q gcc-master.zip 
+      svn checkout svn://gcc.gnu.org/svn/gcc/trunk gcc-master >& svn-gcc.log
    else
       wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
       checksum gcc-${gcc_ver}.tar.gz
@@ -290,12 +304,15 @@ export FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -f
 export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
 export LDFLAGS=" $TSANFLAGS"
 
+# Flags which both gfortran and gcc understand.
+BASEFLAGS="IF_OMP(-fopenmp,) -I\$(CP2KINSTALLDIR)/include"
+
 if [ "$mpichoice" == "openmpi" ]; then
    echo "=================== Installing openmpi ====================="
    if [ -f openmpi-${openmpi_ver}.tar.gz ]; then
       echo "Installation already started, skipping it."
    else
-      wget http://www.open-mpi.org/software/ompi/v1.8/downloads/openmpi-${openmpi_ver}.tar.gz
+      wget https://www.cp2k.org/static/downloads/openmpi-${openmpi_ver}.tar.gz
       checksum openmpi-${openmpi_ver}.tar.gz
       tar -xzf openmpi-${openmpi_ver}.tar.gz
       cd openmpi-${openmpi_ver}
@@ -317,7 +334,7 @@ if [ "$mpichoice" == "mpich" ]; then
    else
       # needed to install mpich ??
       unset F90; unset F90FLAGS
-      wget http://www.cp2k.org/static/downloads/mpich-${mpich_ver}.tar.gz
+      wget https://www.cp2k.org/static/downloads/mpich-${mpich_ver}.tar.gz
       checksum mpich-${mpich_ver}.tar.gz
       tar -xzf mpich-${mpich_ver}.tar.gz
       cd mpich-${mpich_ver}
@@ -333,7 +350,7 @@ echo "================= Installing lapack ref ================="
 if [ -f lapack-${lapack_ver}.tgz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/lapack-${lapack_ver}.tgz
+   wget https://www.cp2k.org/static/downloads/lapack-${lapack_ver}.tgz
    checksum lapack-${lapack_ver}.tgz
    tar -xzf lapack-${lapack_ver}.tgz
    cd lapack-${lapack_ver}
@@ -368,15 +385,14 @@ if [ "x${openblas_ver}" == "x" ]; then
    echo "skipping openblas"
    LIBS="-lreflapack -lrefblas ${LIBS}"
 else
-   if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
+   if [ -f OpenBLAS-${openblas_ver}.tar.gz ]; then
       echo "Installation already started, skipping it."
    else
-      wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
-      checksum xianyi-OpenBLAS-${openblas_ver}.zip
-      unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
-      cd xianyi-OpenBLAS-*
-      # we install both the serial and the omp threaded version.
-      # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
+      wget https://www.cp2k.org/static/downloads/OpenBLAS-${openblas_ver}.tar.gz
+      checksum OpenBLAS-${openblas_ver}.tar.gz
+      tar -xzf OpenBLAS-${openblas_ver}.tar.gz
+      cd OpenBLAS-*
+      # we install only the serial version, in principle serial and omp'ed could co-exist
       make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
       make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
       # make clean >& clean.log
@@ -384,8 +400,8 @@ else
       # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
       cd ..
    fi
-   # currently openblas is not thread safe (neither serial nor omp version),
-   LIBS="IF_VALGRIND(-lreflapack -lrefblas, IF_OMP(-lreflapack -lrefblas,-lopenblas_serial)) ${LIBS}"
+   # openblas should be thread safe now (older issue seemed linux kernel or glibc related)
+   LIBS="IF_VALGRIND(-lreflapack -lrefblas, -lopenblas_serial) ${LIBS}"
 fi
 
 echo "================= Installing libsmm ==================="
@@ -398,8 +414,8 @@ else
 
    # helper to check if libsmm is available (uses http-redirect to find latest version)
    libsmm_exists() {
-       query_url=http://www.cp2k.org/static/downloads/libsmm/$1-latest.a
-       reply_url=`curl $query_url -s -L -I -o /dev/null -w '%{url_effective}'`
+       query_url=https://www.cp2k.org/static/downloads/libsmm/$1-latest.a
+       reply_url=`python -c "import urllib2; print(urllib2.urlopen('$query_url').geturl())"`
        if [ "$query_url" != "$reply_url" ]; then
           echo $reply_url | cut -d/ -f7
        fi
@@ -433,13 +449,14 @@ if [ "$libsmm" != "" ]; then
    if [ -f $libsmm ]; then
       echo "Installation already started, skipping it."
    else
-      wget http://www.cp2k.org/static/downloads/libsmm/$libsmm
+      wget https://www.cp2k.org/static/downloads/libsmm/$libsmm
       checksum $libsmm
       cp $libsmm ${INSTALLDIR}/lib/
-      ln -s ${INSTALLDIR}/lib/$libsmm ${INSTALLDIR}/lib/libsmm_dnn.a
    fi
+   tmp=${libsmm#lib}
+   libname=${tmp%.a}
    DFLAGS="${DFLAGS} IF_VALGRIND(,-D__HAS_smm_dnn)"
-   LIBS="IF_VALGRIND(,-lsmm_dnn) ${LIBS}"
+   LIBS="IF_VALGRIND(,-l${libname}) ${LIBS}"
 fi
 
 
@@ -447,7 +464,7 @@ echo "================= Installing scalapack ==================="
 if [ -f scalapack-${scalapack_ver}.tgz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/scalapack-${scalapack_ver}.tgz
+   wget https://www.cp2k.org/static/downloads/scalapack-${scalapack_ver}.tgz
    checksum scalapack-${scalapack_ver}.tgz
    tar -xzf scalapack-${scalapack_ver}.tgz
    # we dont know the version
@@ -476,6 +493,8 @@ EOF
    cp libscalapack.a ${INSTALLDIR}/lib/
    cd ..
 fi
+
+
 DFLAGS="${DFLAGS} IF_MPI(-D__SCALAPACK,)"
 LIBS="IF_MPI(-lscalapack,) ${LIBS}"
 
@@ -484,7 +503,7 @@ echo "==================== Installing libxc ===================="
 if [ -f libxc-${libxc_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
+   wget https://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
    checksum libxc-${libxc_ver}.tar.gz
    tar -xzf libxc-${libxc_ver}.tar.gz
    cd libxc-${libxc_ver}
@@ -503,7 +522,7 @@ echo "=================== Installing libint ===================="
 if [ -f libint-${libint_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
+   wget https://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
    checksum libint-${libint_ver}.tar.gz
    tar -xzf libint-${libint_ver}.tar.gz
    cd libint-${libint_ver}
@@ -521,7 +540,7 @@ echo "==================== Installing FFTW ====================="
 if [ -f fftw-${fftw_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/fftw-${fftw_ver}.tar.gz
+   wget https://www.cp2k.org/static/downloads/fftw-${fftw_ver}.tar.gz
    checksum fftw-${fftw_ver}.tar.gz
    tar -xzf fftw-${fftw_ver}.tar.gz
    cd fftw-${fftw_ver}
@@ -539,7 +558,7 @@ echo "==================== Installing ELPA ====================="
 if [ -f elpa-${elpa_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
+   wget https://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
    checksum elpa-${elpa_ver}.tar.gz
    tar -xzf elpa-${elpa_ver}.tar.gz
 
@@ -560,12 +579,12 @@ else
    make install >& install.log
    cd ..
 fi
+DFLAGS="${DFLAGS} IF_MPI(-D__ELPA3,)"
 # Unfortunately, we need two separate include dirs for ELPA w/wo threading.
 P1="-I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules"
 P2="-I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules"
-DFLAGS="${DFLAGS} IF_MPI(-D__ELPA3 IF_OMP(${P1},${P2}),)"
+BASEFLAGS="${BASEFLAGS} IF_MPI(IF_OMP(${P1},${P2}),)"
 LIBS="IF_MPI(IF_OMP(-lelpa_openmp,-lelpa),) ${LIBS}"
-
 
 if  [ "x${pexsi_ver}" == "x" ]; then
    echo "Skipping PEXSI build and dependencies"
@@ -574,7 +593,7 @@ echo "================== Installing PT-Scotch =================="
 if [ -f scotch_${scotch_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget  http://www.cp2k.org/static/downloads/scotch_${scotch_ver}.tar.gz
+   wget  https://www.cp2k.org/static/downloads/scotch_${scotch_ver}.tar.gz
    checksum scotch_${scotch_ver}.tar.gz
    tar -xzf scotch_${scotch_ver}.tar.gz
    cd scotch_${scotch_ver}/src
@@ -593,7 +612,7 @@ echo "================== Installing ParMETIS =================="
 if [ -f parmetis-${parmetis_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/parmetis-${parmetis_ver}.tar.gz
+   wget https://www.cp2k.org/static/downloads/parmetis-${parmetis_ver}.tar.gz
    checksum parmetis-${parmetis_ver}.tar.gz
    tar -xzf parmetis-${parmetis_ver}.tar.gz
 
@@ -617,7 +636,7 @@ echo "================== Installing SuperLU_DIST =================="
 if [ -f superlu_dist_${superlu_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
+   wget https://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
    checksum superlu_dist_${superlu_ver}.tar.gz
    tar -xzf superlu_dist_${superlu_ver}.tar.gz
 
@@ -654,7 +673,7 @@ echo "================== Installing PEXSI =================="
 if [ -f pexsi_v${pexsi_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
+   wget https://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
    #wget https://math.berkeley.edu/~linlin/pexsi/download/pexsi_v${pexsi_ver}.tar.gz
    checksum pexsi_v${pexsi_ver}.tar.gz
 
@@ -712,7 +731,7 @@ fi
 #if [ -f plumed-${plumed_ver}.tgz ]; then
 #  echo "Installation already started, skipping it."
 #else
-#  wget http://www.cp2k.org/static/downloads/plumed/plumed-${plumed_ver}.tgz
+#  wget https://www.cp2k.org/static/downloads/plumed/plumed-${plumed_ver}.tgz
 #  checksum plumed-${plumed_ver}.tgz
 #  tar -xzf plumed-${plumed_ver}.tgz
 #  cd plumed-${plumed_ver}
@@ -730,7 +749,7 @@ else
    if [ -f QUIP-${quip_ver}.zip  ]; then
       echo "Installation already started, skipping it."
    else
-      wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
+      wget https://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
       checksum QUIP-${quip_ver}.zip
       unzip QUIP-${quip_ver}.zip >& unzip.log
       cd QUIP-${quip_ver}
@@ -762,30 +781,31 @@ cd ${INSTALLDIR}/arch
 # standart libs
 LIBS="${LIBS} -lstdc++ "
 
-# Flags which both gfortran and gcc understand.
-BASEFLAGS="IF_OMP(-fopenmp,)"
+# we always want good line information and backtraces
 BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
-#BASEFLAGS="${BASEFLAGS} IF_VALGRIND(-mno-avx,)" #not supported by valgrind 3.10.1
 #For gcc 6.0 use -O1 -coverage -fkeep-static-functions -D__NO_ABORT
 BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage -D__NO_ABORT, IF_DEBUG(-O1,-O3 -ffast-math))"
-BASEFLAGS="${BASEFLAGS} IF_DEBUG(-fsanitize=leak -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS,)"
-BASEFLAGS="${BASEFLAGS} \$(PROFOPT)"
+# those flags that do not influence code generation are used always, the others if debug
+FCDEBFLAGS="IF_DEBUG(-fsanitize=leak -fcheck='bounds,do,recursion,pointer' -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math,) -std=f2003 -fimplicit-none "
+DFLAGS="${DFLAGS} IF_DEBUG(-D__HAS_IEEE_EXCEPTIONS,)"
+# profile based optimization, see https://www.cp2k.org/howto:pgo
+BASEFLAGS="${BASEFLAGS} IF_DEBUG(,\$(PROFOPT))"
 
 # Special flags for gfortran
 # https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
-# we error out for these warnings
-WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=unused-dummy-argument -Werror=conversion -Werror=zerotrip"
+# we error out for these warnings (-Werror=uninitialized -Wno-maybe-uninitialized -> error on variables that must be used uninitialized)
+WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=unused-dummy-argument -Werror=conversion -Werror=zerotrip -Werror=uninitialized -Wno-maybe-uninitialized"
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
 WFLAGSWARN="-Wuse-without-only"
 # while here we collect all other warnings, some we'll ignore
 WFLAGSWARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 # combine warn/error flags
 WFLAGS="$WFLAGSERROR $WFLAGSWARN IF_WARNALL(${WFLAGSWARNALL},)"
-FCFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include -std=f2003 -fimplicit-none -ffree-form IF_DEBUG(-fcheck='bounds,do,recursion,pointer',) ${WFLAGS} \$(DFLAGS)"
+FCFLAGS="${BASEFLAGS} -ffree-form \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
 LDFLAGS="-L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)"
 
 # Spcial flags for gcc (currently none)
-CFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include \$(DFLAGS)"
+CFLAGS="${BASEFLAGS} \$(DFLAGS)"
 
 # CUDA stuff
 LIBS="${LIBS} IF_CUDA(-lcudart -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt,),)"
