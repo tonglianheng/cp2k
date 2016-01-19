@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -184,7 +184,7 @@ CONTAINS
 
       IF(.NOT. ASSOCIATED(scf_env)) THEN
         CALL qs_scf_env_initialize(qs_env,scf_env)
-!       Moved here from qs_scf_env_initialize to be able to have more scf_env
+        ! Moved here from qs_scf_env_initialize to be able to have more scf_env
         CALL set_qs_env(qs_env,scf_env=scf_env)
         CALL scf_env_release(scf_env)
         CALL get_qs_env(qs_env=qs_env,scf_env=scf_env)
@@ -475,6 +475,8 @@ CONTAINS
     END DO scf_outer_loop
 
     converged = inner_loop_converged .AND. outer_loop_converged
+
+    IF (.NOT. converged) CPWARN("SCF run NOT converged")
 
     ! if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
     DO ispin=1,SIZE(mos)!fm -> dbcsr

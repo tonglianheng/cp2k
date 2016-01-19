@@ -1,10 +1,10 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Routines for reading and writting restart files.
+!> \brief Routines for reading and writing restart files.
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE pao_io
@@ -46,7 +46,7 @@ MODULE pao_io
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_io'
 
-  PUBLIC ::  pao_write_restart, pao_read_restart
+  PUBLIC :: pao_read_restart, pao_write_restart
 
 CONTAINS
 
@@ -67,7 +67,7 @@ CONTAINS
     INTEGER                                  :: i, iatom, natoms, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
     LOGICAL                                  :: explicit, found
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_precon, block_X, buffer
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_X, buffer
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
 
@@ -110,10 +110,8 @@ CONTAINS
        ENDIF
        CALL mp_bcast(buffer, para_env%source, para_env%group)
        CALL cp_dbcsr_get_block_p(matrix=pao%matrix_X, row=iatom, col=iatom, block=block_X, found=found)
-       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_precon, row=iatom, col=iatom, block=block_precon, found=found)
        IF(ASSOCIATED(block_X)) THEN
-          CPASSERT(ASSOCIATED(block_precon))
-          block_X = MATMUL(block_precon, buffer)
+          block_X = buffer
        ENDIF
        DEALLOCATE(buffer)
     ENDDO
@@ -166,11 +164,6 @@ CONTAINS
           READ(unit_nr,fmt=*) label, str_in
           IF(TRIM(str_in) .NE. TRIM(ADJUSTL(id2str(pao%parameterization))))&
              CPABORT("Restart PAO parametrization does not match")
-
-       ELSE IF(TRIM(label) == "Preconditioner") THEN
-          READ(unit_nr,fmt=*) label, str_in
-          IF(TRIM(str_in) .NE. TRIM(ADJUSTL(id2str(pao%preconditioner))))&
-             CPWARN("Restart PAO preconditioner does not match")
 
        ELSE IF(TRIM(label) == "Cell") THEN
           READ(unit_nr,fmt=*) label, hmat_in
@@ -246,8 +239,7 @@ CONTAINS
                                                 unit_max, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
     LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_precon_inv, block_X, &
-                                                buffer
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_X, buffer
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
@@ -274,7 +266,7 @@ CONTAINS
     unit_max = unit_nr
     CALL mp_max(unit_max, para_env%group)
     IF(unit_max>0) THEN
-       IF(pao%iw>0) WRITE(pao%iw,'(A,A)') " PAO| Writting restart file."
+       IF(pao%iw>0) WRITE(pao%iw,'(A,A)') " PAO| Writing restart file."
        IF(unit_nr>0)&
           CALL write_restart_header(pao, qs_env, energy, unit_nr)
 
@@ -286,10 +278,9 @@ CONTAINS
           ALLOCATE(buffer(row_blk_sizes(iatom), col_blk_sizes(iatom)))
           NULLIFY(block_X)
           CALL cp_dbcsr_get_block_p(matrix=pao%matrix_X, row=iatom, col=iatom, block=block_X, found=found)
-          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_precon_inv, row=iatom, col=iatom, block=block_precon_inv, found=found)
           IF(ASSOCIATED(block_X)) THEN
-             CPASSERT(ASSOCIATED(block_precon_inv))
-             buffer = MATMUL(block_precon_inv, block_X)
+             IF(SIZE(block_X) > 0) & ! corner-case of zero pao parameters
+               buffer(:,:) = block_X(:,:)
           ELSE
              buffer(:,:) = 0.0_dp
           ENDIF
@@ -353,7 +344,6 @@ CONTAINS
     WRITE(unit_nr, "(A,5X,F20.10)") "Energy", energy
     WRITE(unit_nr, "(A,5X,I0)") "Step", pao%istep
     WRITE(unit_nr,"(A,5X,A10)") "Parametrization", id2str(pao%parameterization)
-    WRITE(unit_nr,"(A,5X,A10)") "Preconditioner", id2str(pao%preconditioner)
     DO ikind=1, SIZE(atomic_kind_set)
        CALL get_atomic_kind(atomic_kind_set(ikind), name=kindname, z=z)
        CALL get_qs_kind(qs_kind_set(ikind),&

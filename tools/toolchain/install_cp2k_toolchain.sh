@@ -17,7 +17,8 @@ trap 'error_handler ${LINENO}' ERR
 # default settings
 enable_tsan=false
 mpichoice=mpich
-mpich_ver=3.1.2
+#mpich_ver=3.1.2
+mpich_ver=3.2
 openmpi_ver=1.8.6
 openblas_ver=0.2.15
 scalapack_ver=2.0.2
@@ -42,8 +43,9 @@ lcov_ver=1.11
 #gcc_ver=4.9.2
 #gcc_ver=4.9.3
 #gcc_ver=5.1.0
-gcc_ver=5.2.0
+gcc_ver=5.3.0
 make_ver=4.1
+xsmm_ver=1.1
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -56,6 +58,8 @@ while [ $# -ge 1 ]; do
       enable_tsan=true;;
    --enable-gcc-trunk)
       gcc_ver=master;;
+   --enable-libxsmm-trunk)
+      xsmm_ver=master;;
    -help|-h|--help)
       echo "Usage: install_cp2k_toolchain.sh [OPTIONS]"
       echo "Installs a well defined development environment for CP2K"
@@ -68,6 +72,7 @@ while [ $# -ge 1 ]; do
       echo "                            This is not for normal (production) use, but suitable for"
       echo "                            finding/testing/debugging threading issues during development."
       echo "  --enable-gcc-trunk        use a non-released, development version of gcc for testing."
+      echo "  --enable-libxsmm-trunk    use github master of libxsmm for testing."
       echo ""
       echo "For more information visit: <https://www.cp2k.org/>"
       exit 0;;
@@ -241,17 +246,16 @@ fi
 cat << EOF > ${INSTALLDIR}/lsan.supp
 # known leak either related to mpi or scalapack  (e.g. showing randomly for Fist/regtest-7-2/UO2-2x2x2-genpot_units.inp)
 leak:__cp_fm_types_MOD_cp_fm_write_unformatted
+# leak related to mpi or scalapack  triggers sometimes for regtest-kp-2/cc2.inp
+leak:Cblacs_gridmap
 # leaks related to PEXSI
 leak:PPEXSIDFTDriver
+EOF
+cat << EOF > ${INSTALLDIR}/tsan.supp
 # tsan bugs likely related to gcc
 # PR66756
 deadlock:_gfortran_st_open
 mutex:_gfortran_st_open
-# PR66761
-race:do_spin
-race:gomp_team_end
-#PR67303
-race:gomp_iter_guided_next
 # bugs related to removing/filtering blocks in DBCSR.. to be fixed
 race:__dbcsr_block_access_MOD_dbcsr_remove_block
 race:__dbcsr_operations_MOD_dbcsr_filter_anytype
@@ -266,6 +270,12 @@ cat << EOF > ${INSTALLDIR}/valgrind.supp
    ...
    fun:SymbolicFactorize
 }
+{
+   BuggyMPICH32
+   Memcheck:Cond
+   ...
+   fun:MPIR_Process_status
+}
 EOF
 
 # now we need these tools and compiler to be in the path
@@ -276,6 +286,12 @@ then
 else
     export LD_LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib:\${LD_LIBRARY_PATH}
 fi
+if [ -z "\${LIBRARY_PATH}" ]
+then
+    export LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib
+else
+    export LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib:\${LIBRARY_PATH}
+fi
 if [ -z "\${PATH}" ]
 then
     export PATH=${INSTALLDIR}/bin:${INSTALLDIR}/usr/bin
@@ -284,7 +300,7 @@ else
 fi
 export CP2KINSTALLDIR=${INSTALLDIR}
 export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
-export TSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
+export TSAN_OPTIONS=suppressions=${INSTALLDIR}/tsan.supp
 export VALGRIND_OPTIONS="--suppressions=${INSTALLDIR}/valgrind.supp --max-stackframe=2168152 --error-exitcode=42"
 export CC=gcc
 export CXX=g++
@@ -402,6 +418,14 @@ else
    fi
    # openblas should be thread safe now (older issue seemed linux kernel or glibc related)
    LIBS="IF_VALGRIND(-lreflapack -lrefblas, -lopenblas_serial) ${LIBS}"
+   # where is the openblas configuration file, which gives us the core
+   openblas_conf=`echo ${rootdir}/build/*OpenBLAS*/Makefile.conf`
+   if [ ! -f "$openblas_conf" ]; then
+      echo "Could not find OpenBLAS' Makefile.conf: $openblas_conf"
+      exit 1
+   fi
+   openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
+   openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
 fi
 
 echo "================= Installing libsmm ==================="
@@ -421,14 +445,6 @@ else
        fi
    }
 
-   # where is the openblas configuration file, which gives us the core
-   openblas_conf=`echo ${rootdir}/build/*OpenBLAS*/Makefile.conf`
-   if [ ! -f "$openblas_conf" ]; then
-      echo "Could not find OpenBLAS' Makefile.conf: $openblas_conf"
-      exit 1
-   fi
-   openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
-   openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
    libsmm=`libsmm_exists libsmm_dnn_${openblas_libcore}`
    if [ "$libsmm" != "" ]; then
       echo "An optimized libsmm $libsmm is available"
@@ -459,6 +475,33 @@ if [ "$libsmm" != "" ]; then
    LIBS="IF_VALGRIND(,-l${libname}) ${LIBS}"
 fi
 
+if [ "x${xsmm_ver}" != "x" ]; then
+   echo "================= Installing libxsmm ====================="
+   if [ "$openblas_arch" == "x86_64" ]; then
+      if [ -f libxsmm-${xsmm_ver}.tar.gz -o -d libxsmm-${xsmm_ver} ]; then
+         echo "Installation already started, skipping it."
+      else
+         # master has been tested at rev 1.0.2-157, just prior to the 1.1 release
+         if [ "$xsmm_ver" == "master" ]; then
+           wget -O libxsmm-master.zip https://github.com/hfp/libxsmm/archive/master.zip
+           unzip libxsmm-master.zip  >& libxsmm-unzip.log
+         else
+           wget https://www.cp2k.org/static/downloads/libxsmm-${xsmm_ver}.tar.gz
+           checksum libxsmm-${xsmm_ver}.tar.gz
+           tar -xzf libxsmm-${xsmm_ver}.tar.gz
+         fi
+         cd libxsmm-${xsmm_ver}
+         # we rely on the jit, but as it is not available for SSE, we also generate a subset statically
+         make -j $nprocs CXX=g++ CC=gcc FC=gfortran MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" SSE=1 JIT=1 PREFETCH=1 OPENBLAS=1 BLAS_THREADS=_serial PREFIX=${INSTALLDIR} >& make.log
+         make -j $nprocs CXX=g++ CC=gcc FC=gfortran MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" SSE=1 JIT=1 PREFETCH=1 OPENBLAS=1 BLAS_THREADS=_serial PREFIX=${INSTALLDIR} install >& install.log
+         cd ..
+      fi
+      LIBS="-lxsmm ${LIBS}"
+      DFLAGS="-D__LIBXSMM ${DFLAGS}"
+   else
+      echo "libxsmm not supported on arch $openblas_arch !"  
+   fi
+fi
 
 echo "================= Installing scalapack ==================="
 if [ -f scalapack-${scalapack_ver}.tgz ]; then
@@ -784,7 +827,7 @@ LIBS="${LIBS} -lstdc++ "
 # we always want good line information and backtraces
 BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
 #For gcc 6.0 use -O1 -coverage -fkeep-static-functions -D__NO_ABORT
-BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage -D__NO_ABORT, IF_DEBUG(-O1,-O3 -ffast-math))"
+BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage -D__NO_ABORT, IF_DEBUG(-O1,-O3 -funroll-loops -ffast-math))"
 # those flags that do not influence code generation are used always, the others if debug
 FCDEBFLAGS="IF_DEBUG(-fsanitize=leak -fcheck='bounds,do,recursion,pointer' -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math,) -std=f2003 -fimplicit-none "
 DFLAGS="${DFLAGS} IF_DEBUG(-D__HAS_IEEE_EXCEPTIONS,)"

@@ -124,6 +124,7 @@ cp_error_handling.F: Found CALL mp_abort in procedure "cp_abort_handler"
 cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm"
+cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon"
 cp_fm_diag.F: Unused parameter ‘vl’ declared at (1) [-Wunused-parameter]
 cp_fm_diag.F: Unused parameter ‘vu’ declared at (1) [-Wunused-parameter]
 cp_gemm_interface.F: Found CALL cp_fm_gemm in procedure "cp_gemm"
@@ -170,7 +171,8 @@ dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "cannon_multiply
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "dbcsr_make_images_dense"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_cannon_multiply"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "rec_sort_index"
-dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "setup_rec_index"
+dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "setup_rec_index_1d"
+dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "setup_rec_index_2d"
 dbcsr_mm_csr.F: Found WRITE statement with hardcoded unit in "build_csr_index"
 dbcsr_mm_csr.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_csr_multiply_low"
 dbcsr_mm_hostdrv.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_hostdrv_process"
@@ -440,3 +442,6 @@ Data file BASIS_SET copied to tests/QMMM/QS
 Data file POTENTIAL copied to tests/QMMM/QS
 Data file GTH_BASIS_SETS copied to tests/QMMM/QS
 machine.F: Found OPEN statement in procedure "m_cpuinfo"
+base_hooks.F: Found STOP statement in procedure "cp__a"
+base_hooks.F: Found STOP statement in procedure "cp__b"
+base_hooks.F: Found STOP statement in procedure "cp_abort"

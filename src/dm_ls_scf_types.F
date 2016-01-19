@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -102,7 +102,7 @@ MODULE dm_ls_scf_types
      INTEGER :: purification_method
      INTEGER :: sign_sqrt_order
 
-     LOGICAL               :: needs_s_inv, has_s_preconditioner, fixed_mu, dynamic_threshold
+     LOGICAL               :: needs_s_inv, has_s_preconditioner, fixed_mu, dynamic_threshold, check_s_inv
      LOGICAL               :: restart_read, restart_write, non_monotonic
      REAL(KIND=dp)         :: eps_filter, eps_scf
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -1196,6 +1196,12 @@ CONTAINS
          description="The third order parameter (derivative of hardness) used in "//&
          "diagonal DFTB3 correction.",&
          usage="DFTB3_PARAM 0.2", default_r_val=0.0_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="LMAX_DFTB",&
+         description="The maximum l-quantum number of the DFTB basis for this kind.",&
+         usage="LMAX_DFTB 1", default_i_val=-1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

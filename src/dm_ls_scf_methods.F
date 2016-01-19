@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -40,6 +40,7 @@ MODULE dm_ls_scf_methods
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE mathlib,                         ONLY: abnormal_value
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -132,7 +133,7 @@ CONTAINS
                                        ls_scf_env%sign_sqrt_order, &
                                        ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
 
-        IF (.TRUE.) THEN
+        IF (ls_scf_env%check_s_inv) THEN
            CALL cp_dbcsr_init(matrix_tmp1)
            CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
                                 matrix_type=dbcsr_type_no_symmetry)
@@ -169,7 +170,7 @@ CONTAINS
            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s_sqrt_inv, &
                                         0.0_dp, ls_scf_env%matrix_s_inv, filter_eps=ls_scf_env%eps_filter)
         ENDIF
-        IF (.TRUE.) THEN
+        IF (ls_scf_env%check_s_inv) THEN
            CALL cp_dbcsr_init(matrix_tmp1)
            CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
                                 matrix_type=dbcsr_type_no_symmetry)
@@ -641,10 +642,14 @@ CONTAINS
                                                          min_eig, max_eig," converged: ",arnoldi_converged
     eps_max = max_eig
     eps_min = min_eig
-    
+
     ! scale KS matrix
-    CALL cp_dbcsr_add_on_diag(matrix_x, -eps_max)
-    CALL cp_dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min))
+    IF (eps_max == eps_min) THEN
+      CALL cp_dbcsr_scale(matrix_x,  1.0_dp/eps_max)
+    ELSE 
+      CALL cp_dbcsr_add_on_diag(matrix_x, -eps_max)
+      CALL cp_dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min))
+    ENDIF
 
     current_threshold = threshold
     IF (do_dyn_threshold) THEN
@@ -757,6 +762,9 @@ CONTAINS
                       (flop1+flop2)/(1.0E6_dp*MAX(t2-t1,0.001_dp)), current_threshold
          CALL m_flush(unit_nr)
       ENDIF
+
+      IF(abnormal_value(trace_gx)) &
+         CPABORT("trace_gx is an abnormal value (NaN/Inf).")
 
       ! a branch of 1 or 2 appears to lead to a less accurate electron number count and premature exit
       ! if it turns out this does not exit because we get stuck in branch 1/2 for a reason we need to refine further

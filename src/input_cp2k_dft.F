@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -1255,6 +1255,13 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key,"KPOINTS",&
          description="Controls the printing of kpoint information.", &
+         print_level=medium_print_level,filename="__STD_OUT__")
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
+
+    CALL cp_print_key_section_create(print_key,"OVERLAP_CONDITION",&
+         description="Controls the the checking and printing of and estimate "//&
+                     "of the overlap matrix condition number", &
          print_level=medium_print_level,filename="__STD_OUT__")
     CALL section_add_subsection(section,print_key)
     CALL section_release(print_key)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -36,7 +36,7 @@ MODULE dbcsr_mp_operations
   USE kinds,                           ONLY: real_4,&
                                              real_8
   USE message_passing,                 ONLY: &
-       mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_rget, &
+       mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_rget, mp_sendrecv, &
        mp_type_descriptor_type, mp_type_make, mp_waitall, mp_win_create
 #include "../../base/base_uses.f90"
 
@@ -53,6 +53,7 @@ MODULE dbcsr_mp_operations
             hybrid_alltoall_c1, hybrid_alltoall_z1,&
             hybrid_alltoall_i1, hybrid_alltoall_any
   PUBLIC :: dbcsr_allgatherv
+  PUBLIC :: dbcsr_sendrecv_any
   PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
   PUBLIC :: dbcsr_win_create_any, dbcsr_rget_any
   ! Type helpers
@@ -382,6 +383,44 @@ CONTAINS
   END FUNCTION dbcsr_mp_type_from_anytype
 
 ! *****************************************************************************
+!> \brief sendrecv of encapsulated data.
+!> \param msgin ...
+!> \param dest ...
+!> \param msgout ...
+!> \param source ...
+!> \param comm ...
+!> \note see mp_sendrecv 
+! *****************************************************************************
+  SUBROUTINE dbcsr_sendrecv_any(msgin,dest,msgout,source,comm)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: msgin
+    INTEGER, INTENT(IN)                      :: dest
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sendrecv_any', &
+      routineP = moduleN//':'//routineN
+
+    CALL dbcsr_assert (dbcsr_data_get_type (msgin).EQ.&
+         dbcsr_data_get_type (msgout),&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Different data type for msgin and msgout", __LINE__)
+
+    SELECT CASE (dbcsr_data_get_type (msgin))
+    CASE (dbcsr_type_real_4)
+       CALL mp_sendrecv (msgin%d%r_sp, dest, msgout%d%r_sp, source, comm)
+    CASE (dbcsr_type_real_8)
+       CALL mp_sendrecv (msgin%d%r_dp, dest, msgout%d%r_dp, source, comm)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_sendrecv (msgin%d%c_sp, dest, msgout%d%c_sp, source, comm)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_sendrecv (msgin%d%c_dp, dest, msgout%d%c_dp, source, comm)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Incorrect data type", __LINE__)
+    END SELECT
+  END SUBROUTINE dbcsr_sendrecv_any
+
+! *****************************************************************************
 !> \brief Non-blocking send of encapsulated data.
 !> \param msgin ...
 !> \param dest ...
@@ -481,28 +520,34 @@ CONTAINS
 !> \param base ...
 !> \param source ...
 !> \param win ...
+!> \param win_data ...
 !> \param disp ...
 !> \param request ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_rget_any(base,source,win,disp,request)
+  SUBROUTINE dbcsr_rget_any(base,source,win,win_data,disp,request)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: base
     INTEGER, INTENT(IN)                      :: source
     INTEGER, INTENT(INOUT)                   :: win
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: win_data
     INTEGER, INTENT(IN), OPTIONAL            :: disp
     INTEGER, INTENT(OUT)                     :: request
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_rget_any', &
       routineP = moduleN//':'//routineN
 
+    CALL dbcsr_assert (dbcsr_data_get_type (base), "EQ", dbcsr_data_get_type(win_data),&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Mismatch data type between buffer and window", __LINE__)
+
     SELECT CASE (dbcsr_data_get_type (base))
     CASE (dbcsr_type_real_4)
-       CALL mp_rget (base%d%r_sp, source, win, disp, request)
+       CALL mp_rget (base%d%r_sp, source, win, win_data%d%r_sp, disp, request)
     CASE (dbcsr_type_real_8)
-       CALL mp_rget (base%d%r_dp, source, win, disp, request)
+       CALL mp_rget (base%d%r_dp, source, win, win_data%d%r_dp, disp, request)
     CASE (dbcsr_type_complex_4)
-       CALL mp_rget (base%d%c_sp, source, win, disp, request)
+       CALL mp_rget (base%d%c_sp, source, win, win_data%d%c_sp, disp, request)
     CASE (dbcsr_type_complex_8)
-       CALL mp_rget (base%d%c_dp, source, win, disp, request)
+       CALL mp_rget (base%d%c_dp, source, win, win_data%d%c_dp, disp, request)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect data type", __LINE__)

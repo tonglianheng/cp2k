@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -355,12 +355,12 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_sendrecv
-     MODULE PROCEDURE mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3,&
-                      mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3,&
-                      mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3,&
-                      mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3,&
-                      mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3,&
-                      mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3
+     MODULE PROCEDURE mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4,&
+                      mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4,&
+                      mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4,&
+                      mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4,&
+                      mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3, mp_sendrecv_cm4,&
+                      mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3, mp_sendrecv_zm4
   END INTERFACE
 
   INTERFACE mp_isendrecv
@@ -3198,7 +3198,7 @@ CONTAINS
     CALL add_perf(perf_id=21,count=1,time=t_end-t_start)
 #else
     MARK_USED(win)
-    CPABORT("mp_win_free called in non parallel case")
+    win = mp_win_null
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_free
@@ -3232,7 +3232,6 @@ CONTAINS
     CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
 #else
     MARK_USED(win)
-    CPABORT("mp_win_lock_all called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_lock_all
@@ -3266,7 +3265,6 @@ CONTAINS
     CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
 #else
     MARK_USED(win)
-    CPABORT("mp_win_unlock_all called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_unlock_all

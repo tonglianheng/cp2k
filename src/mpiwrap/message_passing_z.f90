@@ -596,6 +596,8 @@
     MARK_USED(dest)
     MARK_USED(tag)
     MARK_USED(gid)
+    ! only defined in parallel
+    CPABORT("not in parallel mode")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_send_z
@@ -632,6 +634,8 @@
     MARK_USED(dest)
     MARK_USED(tag)
     MARK_USED(gid)
+    ! only defined in parallel
+    CPABORT("not in parallel mode")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_send_zv
@@ -677,6 +681,8 @@
     MARK_USED(source)
     MARK_USED(tag)
     MARK_USED(gid)
+    ! only defined in parallel
+    CPABORT("not in parallel mode") 
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_z
@@ -721,6 +727,8 @@
     MARK_USED(source)
     MARK_USED(tag)
     MARK_USED(gid)
+    ! only defined in parallel
+    CPABORT("not in parallel mode") 
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_zv
@@ -1892,6 +1900,58 @@
   END SUBROUTINE mp_sendrecv_zm3
 
 ! *****************************************************************************
+!> \brief Sends and receives rank-4 data
+!> \param msgin ...
+!> \param dest ...
+!> \param msgout ...
+!> \param source ...
+!> \param comm ...
+!> \note see mp_sendrecv_zv 
+! *****************************************************************************
+  SUBROUTINE mp_sendrecv_zm4(msgin,dest,msgout,source,comm)
+    COMPLEX(kind=real_8), INTENT(IN)                      :: msgin( :, :, :, : )
+    INTEGER, INTENT(IN)                      :: dest
+    COMPLEX(kind=real_8), INTENT(OUT)                     :: msgout( :, :, :, : )
+    INTEGER, INTENT(IN)                      :: source, comm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_zm4', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen_in, msglen_out, &
+                                                recv_tag, send_tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
+    msglen_in = SIZE(msgin)
+    msglen_out = SIZE(msgout)
+    send_tag = 0 ! cannot think of something better here, this might be dangerous
+    recv_tag = 0 ! cannot think of something better here, this might be dangerous
+    CALL mpi_sendrecv(msgin,msglen_in,MPI_DOUBLE_COMPLEX,dest,send_tag,msgout,&
+         msglen_out,MPI_DOUBLE_COMPLEX,source,recv_tag,comm,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
+         msg_size=(msglen_in+msglen_out)*(2*real_8_size)/2)
+    DEALLOCATE(status)
+#else
+    MARK_USED(dest)
+    MARK_USED(source)
+    MARK_USED(comm)
+    msgout = msgin
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_sendrecv_zm4
+
+! *****************************************************************************
 !> \brief Non-blocking send and receieve of a scalar
 !> \param[in] msgin           Scalar data to send
 !> \param[in] dest            Which process to send to
@@ -2472,8 +2532,7 @@
 #else
     MARK_USED(base)
     MARK_USED(comm)
-    MARK_USED(win)
-    CPABORT("mp_win_create called in non parallel case")
+    win = mp_win_null
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_create_zv
@@ -2489,9 +2548,10 @@
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
 ! *****************************************************************************
-  SUBROUTINE mp_rget_zv(base,source,win,disp,request)
+  SUBROUTINE mp_rget_zv(base,source,win,win_data,disp,request)
     COMPLEX(kind=real_8), DIMENSION(:), POINTER                      :: base
     INTEGER, INTENT(IN)                                 :: source, win
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER                      :: win_data
     INTEGER, INTENT(IN), OPTIONAL                       :: disp
     INTEGER, INTENT(OUT)                                :: request
 
@@ -2510,6 +2570,7 @@
 
 #if defined(__parallel)
     t_start = m_walltime ( )
+    MARK_USED(win_data)
 
 #if __MPI_VERSION > 2
     len = SIZE(base)
@@ -2526,7 +2587,7 @@
             len,MPI_DOUBLE_COMPLEX,win,request,ierr)
     ENDIF
 #else
-    request = 0
+    request = mp_request_null
     CPABORT("mp_rget requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_rget @ "//routineN )
@@ -2534,12 +2595,17 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=17,count=1,time=t_end-t_start,msg_size=SIZE(base)*(2*real_8_size))
 #else
-    MARK_USED(base)
     MARK_USED(source)
     MARK_USED(win)
-    MARK_USED(disp)
-    MARK_USED(request)
-    CPABORT("mp_rget called in non parallel case")
+
+    request = mp_request_null
+    !
+    IF (PRESENT(disp)) THEN
+       base(:) = win_data(disp+1:disp+SIZE(base))
+    ELSE
+       base(:) = win_data(:SIZE(base))
+    ENDIF
+
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_rget_zv

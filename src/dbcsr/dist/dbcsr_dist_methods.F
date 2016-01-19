@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -98,13 +98,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, lcmv, mypcoor, &
-                                                nclusters, seq
+                                                nclusters, npcols, nprows, seq
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cluster_dist
-    INTEGER, DIMENSION(:), POINTER           :: col_dist_tmp, ld, row_dist_tmp
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_tmp, row_dist_tmp
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
+
+    nprows = dbcsr_mp_nprows(mp_env)
+    npcols = dbcsr_mp_npcols(mp_env)
+    lcmv = lcm(nprows,npcols)
 
     ALLOCATE (dist%d)
     dist%d%refcount = 1
@@ -117,41 +121,46 @@ CONTAINS
     CALL array_nullify(dist%d%row_dist_cluster)
     IF (PRESENT(row_dist_cluster)) THEN
        IF (ASSOCIATED(row_dist_cluster)) THEN
-          row_dist_tmp => row_dist_cluster
-          CALL array_new(dist%d%row_dist_cluster, row_dist_tmp, gift=reuse_arrays)
-          CALL dbcsr_assert(SIZE(row_dist_cluster), "EQ", SIZE(row_dist_block),&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Blocks and clusters size are different for row grid",&
-               __LINE__)
-          nclusters=MAXVAL(row_dist_cluster)
+          ! check against the case where there are more clusters than blocks
+          IF (SIZE(row_dist_cluster).GE.lcmv) THEN
+             row_dist_tmp => row_dist_cluster
+             CALL array_new(dist%d%row_dist_cluster, row_dist_tmp, gift=reuse_arrays)
+             CALL dbcsr_assert(SIZE(row_dist_cluster), "EQ", SIZE(row_dist_block),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Blocks and clusters size are different for row grid",&
+                  __LINE__)
+             nclusters=MAXVAL(row_dist_cluster)
+          ENDIF
        ENDIF
     ENDIF
     CALL array_nullify(dist%d%col_dist_cluster)
     IF (PRESENT(col_dist_cluster)) THEN
        IF (ASSOCIATED(col_dist_cluster)) THEN
-          col_dist_tmp => col_dist_cluster
-          CALL array_new(dist%d%col_dist_cluster, col_dist_tmp, gift=reuse_arrays)
-          CALL dbcsr_assert(SIZE(col_dist_cluster), "EQ", SIZE(col_dist_block),&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Blocks and clusters size are different for column grid",&
-               __LINE__)
-          nclusters=MAX(nclusters,MAXVAL(col_dist_cluster))
+          ! check against the case where there are more clusters than blocks
+          IF (SIZE(col_dist_cluster).GE.lcmv) THEN
+             col_dist_tmp => col_dist_cluster
+             CALL array_new(dist%d%col_dist_cluster, col_dist_tmp, gift=reuse_arrays)
+             CALL dbcsr_assert(SIZE(col_dist_cluster), "EQ", SIZE(col_dist_block),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Blocks and clusters size are different for column grid",&
+                  __LINE__)
+             nclusters=MAX(nclusters,MAXVAL(col_dist_cluster))
+          ENDIF
        ENDIF
     ENDIF
     IF (nclusters.GT.0) THEN
-       lcmv = lcm(dbcsr_mp_nprows(mp_env),dbcsr_mp_npcols(mp_env))
        nclusters = CEILING(DBLE(nclusters)/lcmv)*lcmv
     ENDIF
 
     dist%d%mp_env = mp_env
     CALL dbcsr_mp_hold (dist%d%mp_env)
     ! Verify given process row distribution.
-    CALL dbcsr_assert (MAXVAL (row_dist_block), "LT", dbcsr_mp_nprows (mp_env),&
+    CALL dbcsr_assert (MAXVAL (row_dist_block), "LT", nprows,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "A process row is too big for process grid",&
          __LINE__)
     ! Verify given process column distribution.
-    CALL dbcsr_assert (MAXVAL (col_dist_block), "LT", dbcsr_mp_npcols (mp_env),&
+    CALL dbcsr_assert (MAXVAL (col_dist_block), "LT", npcols,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "A process column is too big for process grid",&
          __LINE__)
@@ -160,32 +169,30 @@ CONTAINS
     ELSE
        mypcoor = dbcsr_mp_myprow (mp_env)
        i = COUNT (row_dist_block.EQ.mypcoor)
-       NULLIFY (ld)
-       ALLOCATE (ld(i))
+       ALLOCATE (row_dist_tmp(i))
        seq = 1
        DO i = 1, SIZE(row_dist_block)
           IF (row_dist_block(i) .EQ. mypcoor) THEN
-             ld(seq) = i
+             row_dist_tmp(seq) = i
              seq = seq+1
           ENDIF
        ENDDO
-       CALL array_new (dist%d%local_rows, ld, gift=.TRUE.)
+       CALL array_new (dist%d%local_rows, row_dist_tmp, gift=.TRUE.)
     ENDIF
     IF (PRESENT (local_cols)) THEN
        CALL array_new(dist%d%local_cols, local_cols, gift=reuse_arrays)
     ELSE
        mypcoor = dbcsr_mp_mypcol (mp_env)
        i = COUNT (col_dist_block.EQ.mypcoor)
-       NULLIFY (ld)
-       ALLOCATE (ld(i))
+       ALLOCATE (col_dist_tmp(i))
        seq = 1
        DO i = 1, SIZE(col_dist_block)
           IF (col_dist_block(i) .EQ. mypcoor) THEN
-             ld(seq) = i
+             col_dist_tmp(seq) = i
              seq = seq+1
           ENDIF
        ENDDO
-       CALL array_new (dist%d%local_cols, ld, gift=.TRUE.)
+       CALL array_new (dist%d%local_cols, col_dist_tmp, gift=.TRUE.)
     ENDIF
 
     ! check cluster distributions -- rows
@@ -209,7 +216,7 @@ CONTAINS
                   __LINE__)
           END IF
        END DO
-       CALL dbcsr_assert (seq,"LE",nclusters/dbcsr_mp_nprows(mp_env),&
+       CALL dbcsr_assert (seq*nprows,"EQ",nclusters,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Clusters distribution is not uniform across processors",&
             __LINE__)
@@ -238,7 +245,7 @@ CONTAINS
                   __LINE__)
           END IF
        END DO
-       CALL dbcsr_assert (seq,"LE",nclusters/dbcsr_mp_npcols(mp_env),&
+       CALL dbcsr_assert (seq*npcols,"EQ",nclusters,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Clusters distribution is not uniform across processors",&
             __LINE__)

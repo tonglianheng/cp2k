@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -256,6 +256,12 @@ CONTAINS
     CALL keyword_create(keyword, name="PERFORM_MU_SCAN",&
          description="Do a scan of the chemical potential after the SCF",&
          usage="PERFORM_MU_SCAN", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CHECK_S_INV",&
+         description="Perform an accuracy check on the inverse/sqrt of the s matrix.",&
+         usage="CHECK_S_INV", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

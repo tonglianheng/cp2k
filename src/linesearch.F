@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -613,8 +613,6 @@ CONTAINS
        this%middle_x = 0.0
        this%right_x  = 0.0
     END IF
-
-    IF(step_size < 1.0e-10) CPABORT("Gradient is wrong.")
 
     this%last_step_size = step_size
   END SUBROUTINE linesearch_adapt

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -597,6 +597,11 @@ CONTAINS
          description="Restarts helium density distributions from PINT%HELIUM%RHO.",&
          type_of_var=logical_t,lone_keyword_l_val=.TRUE.,&
          default_l_val=.FALSE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="RESTART_HELIUM_AVERAGES",&
+         description="Restarts average properties from PINT%HELIUM%AVERAGES.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

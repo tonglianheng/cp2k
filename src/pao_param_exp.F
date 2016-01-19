@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,11 +10,13 @@
 MODULE pao_param_exp
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set
+       cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set
   USE kinds,                           ONLY: dp
-  USE pao_input,                       ONLY: pao_none_precon
+  USE mathlib,                         ONLY: diamat_all
   USE pao_types,                       ONLY: pao_env_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -39,12 +41,16 @@ CONTAINS
   SUBROUTINE pao_param_init_exp(pao, qs_env, reuse_matrix_X)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL                                  :: reuse_matrix_X
+    LOGICAL, INTENT(IN)                      :: reuse_matrix_X
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_exp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: acol, arow, handle
+    LOGICAL                                  :: found
+    REAL(dp), DIMENSION(:), POINTER          :: evals
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_H, block_N, block_U0
+    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -56,24 +62,35 @@ CONTAINS
                     matrix_s=matrix_s,&
                     dft_control=dft_control)
 
+    IF(dft_control%nspins /= 1) CPABORT("open shell not yet implemented")
+
     IF(reuse_matrix_X) THEN
        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| reusing rotation matrices from last MD step"
     ELSE
+       ! allocate matrix_X
        CALL cp_dbcsr_init(pao%matrix_X)
        CALL cp_dbcsr_create(pao%matrix_X, template=matrix_s(1)%matrix, matrix_type="N")
        CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
        CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
-       IF(dft_control%nspins /= 1) CPABORT("open shell not yet implemented")
     ENDIF
 
-    ! build none preconditioner
-    IF(pao%preconditioner /= pao_none_precon) CPABORT("preconditioner not supported")
-    CALL cp_dbcsr_init(pao%matrix_precon)
-    CALL cp_dbcsr_copy(pao%matrix_precon, pao%matrix_X)
-    CALL cp_dbcsr_set(pao%matrix_precon, 0.0_dp)
-    CALL cp_dbcsr_add_on_diag(pao%matrix_precon, 1.0_dp)
-    CALL cp_dbcsr_init(pao%matrix_precon_inv)
-    CALL cp_dbcsr_copy(pao%matrix_precon_inv, pao%matrix_precon)
+    ! allocate matrix_U0
+    CALL cp_dbcsr_init(pao%matrix_U0)
+    CALL cp_dbcsr_create(pao%matrix_U0, template=matrix_s(1)%matrix, matrix_type="N")
+    CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
+
+    CALL cp_dbcsr_iterator_start(iter, pao%matrix_U0)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
+       CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=arow, col=acol, block=block_H, found=found)
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=arow, col=acol, block=block_N, found=found)
+       CPASSERT(ASSOCIATED(block_H) .AND. ASSOCIATED(block_N))
+       block_U0 = MATMUL(MATMUL(block_N,block_H),block_N)  ! transform H into orthonormal basis
+       ALLOCATE(evals(SIZE(block_H,1)))
+       CALL diamat_all(block_U0, evals)
+       DEALLOCATE(evals)
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL timestop(handle)
   END SUBROUTINE pao_param_init_exp
@@ -89,10 +106,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize_exp', &
       routineP = moduleN//':'//routineN
 
-! pao%matrix_X is keept for the next MD step
-
-    CALL cp_dbcsr_release(pao%matrix_precon)
-    CALL cp_dbcsr_release(pao%matrix_precon_inv)
+    CALL cp_dbcsr_release(pao%matrix_U0)
 
   END SUBROUTINE pao_param_finalize_exp
 
@@ -121,7 +135,7 @@ CONTAINS
     COMPLEX(dp), DIMENSION(:, :), POINTER    :: block_D, evecs
     INTEGER                                  :: handle, i, j, k, M, N
     LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_Y
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_tmp, block_U0, block_Y
 
     CALL timeset(routineN,handle)
 
@@ -129,6 +143,9 @@ CONTAINS
     CPASSERT(ASSOCIATED(block_Y))
     N=SIZE(block_Y, 1)
     M=SIZE(block_Y, 2)
+
+    CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
+    CPASSERT(ASSOCIATED(block_U0))
 
     ALLOCATE(evals(N), evecs(N,N))
     CALL diag_antisym(block_X, evecs, evals)
@@ -142,11 +159,13 @@ CONTAINS
        ENDDO
     ENDDO
 
+    block_U = MATMUL(block_U0, block_U) ! prepend initial guess rotation
+
     ! TURNING POINT (if calc grad) ------------------------------------------
     IF(PRESENT(block_G))THEN
        CPASSERT(PRESENT(block_M))
 
-       ALLOCATE(block_D(N,N))
+       ALLOCATE(block_D(N,N), block_tmp(N,N))
        DO i=1, N
           DO j=1, N
              denom = evals(i) - evals(j)
@@ -160,8 +179,9 @@ CONTAINS
           ENDDO
        ENDDO
 
-       block_G = fold_derivatives(block_M, block_D, evecs, -1)
-       DEALLOCATE(block_D)
+       block_tmp = MATMUL(TRANSPOSE(block_U0), block_M)
+       block_G = fold_derivatives(block_tmp, block_D, evecs, -1)
+       DEALLOCATE(block_D, block_tmp)
     ENDIF
 
     DEALLOCATE(evals, evecs)
@@ -242,7 +262,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Helper routine for calling BLAS zheevd
+!> \brief Helper routine for calling LAPACK zheevd
 !> \param matrix ...
 !> \param eigenvectors ...
 !> \param eigenvalues ...
