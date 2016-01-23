@@ -1871,10 +1871,6 @@ MODULE dbcsr_mm_cannon
           meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_type) = 0
           !
           CALL image_calculator(imgdist,&
-               prow=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_prow),&
-               pcol=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_pcol),&
-               rowi=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_rowi),&
-               coli=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_coli),&
                vprow=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_vprow),&
                vpcol=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_vpcol),&
                myrowi = rowi, mycoli = coli,&
@@ -4283,7 +4279,7 @@ MODULE dbcsr_mm_cannon
                      vpcol_shift=metronome*min_nimages,&
                      shifting='L')
                 !
-                IF (left_refs(idata_size,recv_vrow,recv_vcol).GT.0.AND.&
+                IF (left_refs(imeta_size,recv_vrow,recv_vcol).GT.0.AND.&
                     left_recv_filtered(v_ri,v_ki,metronome).LT.right_col_nimages) THEN
                    CALL timeset(routineN//"_metrocomm4", handle2)
                    !
