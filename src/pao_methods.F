@@ -34,7 +34,6 @@ MODULE pao_methods
   USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_max
-  USE pao_input,                       ONLY: pao_exp_param
   USE pao_param,                       ONLY: pao_update_AB
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
@@ -275,7 +274,6 @@ CONTAINS
     pao%step_start_time = now
 
     norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
-    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy:", new_energy
     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| gradient norm:", norm_G
 
     IF(pao%istep>1) THEN
@@ -287,7 +285,7 @@ CONTAINS
        is_converged = loop_eps < pao%eps_pao
 
        ! print one-liner
-       IF(pao%iw>0) WRITE (pao%iw,'(A,I6,11X,F20.9,1X,E10.3,1X,E10.3,1X,F6.3)')&
+       IF(pao%iw>0) WRITE (pao%iw,'(A,I6,11X,F20.9,1X,E10.3,1X,E10.3,1X,F9.3)')&
                     " PAO| step ",&
                     pao%istep,&
                     new_energy,&
@@ -379,9 +377,12 @@ CONTAINS
     ENDDO
 
     ! add penalty term
-    IF (penalty/=0.0_dp .AND. pao%iw>0) WRITE(pao%iw,*) "PAO| penalty energy:", penalty
     energy = energy + penalty
 
+    IF(pao%iw>0) THEN
+      WRITE(pao%iw,*) ""
+      WRITE(pao%iw,*) "PAO| energy:", energy, "penalty:", penalty
+    ENDIF
     CALL timestop(handle)
   END SUBROUTINE pao_calc_energy
 
@@ -568,6 +569,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nspin
+    REAL(KIND=dp)                            :: filter_eps
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_dbcsr_type) :: matrix_HB, matrix_HPS, matrix_M1, matrix_M2, &
@@ -591,6 +593,7 @@ CONTAINS
                     dft_control=dft_control)
     CALL qs_rho_get(rho, rho_ao=rho_ao)
     nspin = dft_control%nspins
+    filter_eps=ls_scf_env%eps_filter
 
     IF(nspin /= 1) CPABORT("open shell not yet implemented")
     !TODO: handle openshell case properly
@@ -605,29 +608,29 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_PH)
     CALL cp_dbcsr_create(matrix_PH, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_p(1), ls_scf_env%matrix_ks(1),&
-                          0.0_dp, matrix_PH)
+                          0.0_dp, matrix_PH, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_PHP)
     CALL cp_dbcsr_create(matrix_PHP, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_PH, ls_scf_env%matrix_p(1),&
-                           0.0_dp, matrix_PHP)
+                           0.0_dp, matrix_PHP, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_SP)
     CALL cp_dbcsr_create(matrix_SP, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s, ls_scf_env%matrix_p(1),&
-                          0.0_dp, matrix_SP)
+                          0.0_dp, matrix_SP, filter_eps=filter_eps)
 
     IF(SIZE(ls_scf_env%matrix_p)==1) CALL cp_dbcsr_scale(matrix_SP, 0.5_dp)
 
     CALL cp_dbcsr_init(matrix_HPS)
     CALL cp_dbcsr_create(matrix_HPS, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "T", 1.0_dp, ls_scf_env%matrix_ks(1), matrix_SP,&
-                          0.0_dp, matrix_HPS)
+                          0.0_dp, matrix_HPS, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_PSP)
     CALL cp_dbcsr_create(matrix_PSP, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_p(1), matrix_SP,&
-                           0.0_dp, matrix_PSP)
+                           0.0_dp, matrix_PSP, filter_eps=filter_eps)
 
     !---------------------------------------------------------------------------
     ! M1 = dE_lnv / dP_pao
@@ -635,19 +638,19 @@ CONTAINS
     CALL cp_dbcsr_create(matrix_M1, template=ls_scf_env%matrix_s, matrix_type="N")
 
     CALL cp_dbcsr_multiply("N", "T", 3.0_dp, ls_scf_env%matrix_ks(1), matrix_SP,&
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "N", 3.0_dp, matrix_SP, ls_scf_env%matrix_ks(1),&
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_HPS, matrix_SP,&
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_SP, matrix_HPS, &
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_SP, matrix_HPS,&
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
 
     !---------------------------------------------------------------------------
@@ -658,7 +661,7 @@ CONTAINS
     CALL cp_dbcsr_add(matrix_M2, matrix_PSP, 1.0_dp, 3.0_dp)
 
     CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PSP, matrix_SP,&
-                           1.0_dp, matrix_M2)
+                           1.0_dp, matrix_M2, filter_eps=filter_eps)
 
     !---------------------------------------------------------------------------
     ! M3 = dE_lnv / dS
@@ -668,10 +671,10 @@ CONTAINS
     CALL cp_dbcsr_add(matrix_M3, matrix_PHP, 1.0_dp, 3.0_dp)
 
     CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PHP, matrix_SP,&
-                           1.0_dp, matrix_M3)
+                           1.0_dp, matrix_M3, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_PSP, matrix_PH,&
-                           1.0_dp, matrix_M3)
+                           1.0_dp, matrix_M3, filter_eps=filter_eps)
 
 
     !---------------------------------------------------------------------------
@@ -679,20 +682,20 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_PA)
     CALL cp_dbcsr_create(matrix_PA, template=ls_mstruct%matrix_A, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, rho_ao(1)%matrix, ls_mstruct%matrix_A ,&
-                           0.0_dp, matrix_PA)
+                           0.0_dp, matrix_PA, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NPA)
     CALL cp_dbcsr_create(matrix_NPA, template=ls_mstruct%matrix_A, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N_inv, matrix_PA,&
-                           0.0_dp, matrix_NPA)
+                           0.0_dp, matrix_NPA, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NPAM1)
     CALL cp_dbcsr_create(matrix_NPAM1, template=ls_mstruct%matrix_A, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NPA, matrix_M1,&
-                           0.0_dp, matrix_NPAM1)
+                           0.0_dp, matrix_NPAM1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_NPAM1, pao%matrix_Y,&
-                           1.0_dp, matrix_M)
+                           1.0_dp, matrix_M, filter_eps=filter_eps)
 
 
     !---------------------------------------------------------------------------
@@ -700,20 +703,20 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_HB)
     CALL cp_dbcsr_create(matrix_HB, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_ks(1)%matrix, ls_mstruct%matrix_B,&
-                           0.0_dp, matrix_HB)
+                           0.0_dp, matrix_HB, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NHB)
     CALL cp_dbcsr_create(matrix_NHB, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N, matrix_HB,&
-                           0.0_dp, matrix_NHB)
+                           0.0_dp, matrix_NHB, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NHBM2)
     CALL cp_dbcsr_create(matrix_NHBM2, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NHB, matrix_M2,&
-                           0.0_dp, matrix_NHBM2)
+                           0.0_dp, matrix_NHBM2, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_NHBM2, pao%matrix_Y,&
-                           1.0_dp, matrix_M)
+                           1.0_dp, matrix_M, filter_eps=filter_eps)
 
 
     !---------------------------------------------------------------------------
@@ -721,27 +724,27 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_SB)
     CALL cp_dbcsr_create(matrix_SB, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s(1)%matrix, ls_mstruct%matrix_B,&
-                           0.0_dp, matrix_SB)
+                           0.0_dp, matrix_SB, filter_eps=filter_eps)
 
     IF(SIZE(ls_scf_env%matrix_p)==1) CALL cp_dbcsr_scale(matrix_SB, 0.5_dp)
 
     CALL cp_dbcsr_init(matrix_NSB)
     CALL cp_dbcsr_create(matrix_NSB, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N, matrix_SB,&
-                           0.0_dp, matrix_NSB)
+                           0.0_dp, matrix_NSB, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NSBM3)
     CALL cp_dbcsr_create(matrix_NSBM3, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NSB, matrix_M3,&
-                           0.0_dp, matrix_NSBM3)
+                           0.0_dp, matrix_NSBM3, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_NSBM3, pao%matrix_Y,&
-                           1.0_dp, matrix_M)
+                           1.0_dp, matrix_M, filter_eps=filter_eps)
 
     IF(SIZE(ls_scf_env%matrix_p)==1) CALL cp_dbcsr_scale(matrix_M, 2.0_dp)
 
     !---------------------------------------------------------------------------
-    ! cleanup
+    ! cleanup: TODO release matrices as early as possible
     CALL cp_dbcsr_release(matrix_PH)
     CALL cp_dbcsr_release(matrix_PHP)
     CALL cp_dbcsr_release(matrix_SP)
@@ -781,8 +784,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iatom, j, natoms
     INTEGER, DIMENSION(:), POINTER           :: blk_sizes_col, blk_sizes_row
     LOGICAL                                  :: found
-    REAL(dp)                                 :: delta, delta_max, eps, &
-                                                Gij_num, symm
+    REAL(dp)                                 :: delta, delta_max, eps, Gij_num
     REAL(dp), DIMENSION(:, :), POINTER       :: block_G, block_X
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
@@ -792,13 +794,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ls_mstruct => ls_scf_env%ls_mstruct
-
-    SELECT CASE(pao%parameterization)
-      CASE(pao_exp_param)
-        symm = -1.0_dp ! anti-symmetric
-      CASE DEFAULT
-        symm = 0.0_dp  ! no symmetry
-    END SELECT
 
     CALL get_qs_env(qs_env, para_env=para_env, natom=natoms)
 
@@ -820,29 +815,26 @@ CONTAINS
 
        DO i=1, blk_sizes_row(iatom)
           DO j=1, blk_sizes_col(iatom)
-             IF(symm /= 0.0_dp .AND. j<i) CYCLE   ! symmetric matrix, skip lower triangle
-             IF(symm == -1.0_dp .AND. i==j) CYCLE ! anti-symmetric matrix, skip diagonal
-
              SELECT CASE(pao%num_grad_order)
               CASE(2) ! calculate derivative to 2th order
-                Gij_num =         - eval_point(block_X, i, j, -eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num + eval_point(block_X, i, j, +eps, symm, pao, ls_scf_env, qs_env)
+                Gij_num =         - eval_point(block_X, i, j, -eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num + eval_point(block_X, i, j, +eps, pao, ls_scf_env, qs_env)
                 Gij_num = Gij_num / (2.0_dp * eps)
 
               CASE(4) ! calculate derivative to 4th order
-                Gij_num =                  eval_point(block_X, i, j, -2_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num - 8_dp * eval_point(block_X, i, j, -1_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num + 8_dp * eval_point(block_X, i, j, +1_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num -        eval_point(block_X, i, j, +2_dp*eps, symm, pao, ls_scf_env, qs_env)
+                Gij_num =                  eval_point(block_X, i, j, -2_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num - 8_dp * eval_point(block_X, i, j, -1_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num + 8_dp * eval_point(block_X, i, j, +1_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num -        eval_point(block_X, i, j, +2_dp*eps, pao, ls_scf_env, qs_env)
                 Gij_num = Gij_num / (12.0_dp * eps)
 
               CASE(6) ! calculate derivative to 6th order
-                Gij_num =         -  1_dp * eval_point(block_X, i, j, -3_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num +  9_dp * eval_point(block_X, i, j, -2_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num - 45_dp * eval_point(block_X, i, j, -1_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num + 45_dp * eval_point(block_X, i, j, +1_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num -  9_dp * eval_point(block_X, i, j, +2_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num +  1_dp * eval_point(block_X, i, j, +3_dp*eps, symm, pao, ls_scf_env, qs_env)
+                Gij_num =         -  1_dp * eval_point(block_X, i, j, -3_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num +  9_dp * eval_point(block_X, i, j, -2_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num - 45_dp * eval_point(block_X, i, j, -1_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num + 45_dp * eval_point(block_X, i, j, +1_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num -  9_dp * eval_point(block_X, i, j, +2_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num +  1_dp * eval_point(block_X, i, j, +3_dp*eps, pao, ls_scf_env, qs_env)
                 Gij_num = Gij_num / (60.0_dp * eps)
 
              CASE DEFAULT
@@ -872,16 +864,15 @@ CONTAINS
 !> \param i ...
 !> \param j ...
 !> \param eps ...
-!> \param symm ...
 !> \param pao ...
 !> \param ls_scf_env ...
 !> \param qs_env ...
 !> \retval energy ...
 ! *****************************************************************************
-  FUNCTION eval_point(block_X, i, j, eps, symm, pao, ls_scf_env, qs_env) RESULT(energy)
+  FUNCTION eval_point(block_X, i, j, eps, pao, ls_scf_env, qs_env) RESULT(energy)
     REAL(dp), DIMENSION(:, :), POINTER       :: block_X
     INTEGER, INTENT(IN)                      :: i, j
-    REAL(dp), INTENT(IN)                     :: eps, symm
+    REAL(dp), INTENT(IN)                     :: eps
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -890,23 +881,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_point', &
       routineP = moduleN//':'//routineN
 
-    REAL(dp)                                 :: old_Xij, old_Xji
+    REAL(dp)                                 :: old_Xij
 
     IF(ASSOCIATED(block_X)) THEN
        old_Xij = block_X(i,j) ! backup old block_X
        block_X(i,j) = block_X(i,j) + eps ! add pertubation
-       IF(symm/=0.0) THEN
-          old_Xji = block_X(j,i)
-          block_X(j,i) = block_X(j,i) + symm*eps
-       ENDIF
     ENDIF
 
     ! calculate energy
     CALL pao_calc_energy(pao, qs_env, ls_scf_env, energy)
 
-    ! restore old block_X (in reverse order to treat diagonals properly)
+    ! restore old block_X
     IF(ASSOCIATED(block_X)) THEN
-       IF(symm/=0.0) block_X(j,i) = old_Xji
        block_X(i,j) = old_Xij
     ENDIF
 

@@ -129,6 +129,7 @@ MODULE input_cp2k_dft
                                              precond_spl3_aint2
   USE qs_density_mixing_types,         ONLY: create_mixing_section
   USE qs_fb_input,                     ONLY: create_filtermatrix_section
+  USE qs_mom_types,                    ONLY: create_mom_section
   USE string_utilities,                ONLY: newline,&
                                              s2a
 #include "./base/base_uses.f90"
@@ -4074,8 +4075,8 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"scf",&
-         description="Parameters needed perform an SCF run.",&
-         n_keywords=24, n_subsections=3, repeats=.FALSE.)
+         description="Parameters needed to perform an SCF run.",&
+         n_keywords=18, n_subsections=7, repeats=.FALSE.)
 
     NULLIFY (subsection)
 
@@ -4096,6 +4097,10 @@ CONTAINS
     CALL section_release(subsection)
 
     CALL create_mixing_section(subsection)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+
+    CALL create_mom_section(subsection)
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
 
@@ -5035,10 +5040,22 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="SKIP_LOAD_BALANCE_DISTRIBUTED",&
-         description="Skip load balancing on distributed multigrids, which might be memory intensive."//&
-                     "If not explicitly specified, runs using more than 1024 MPI tasks will default to .TRUE.",&
-         usage="SKIP_LOAD_BALANCE_DISTRIBUTED", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+
+    CALL keyword_create( keyword    &
+                       , name="SKIP_LOAD_BALANCE_DISTRIBUTED"    &
+                       , description="Skips load balancing on distributed multigrids.  " &
+                              //     "Memory usage is O(p) so may be used "    & 
+                              //     "for all but the very largest runs."    &
+                       , usage="SKIP_LOAD_BALANCE_DISTRIBUTED"    &
+                       , default_l_val=.FALSE.    &
+                       , lone_keyword_l_val=.TRUE.    &
+                       )
+!    CALL keyword_create(keyword, name="SKIP_LOAD_BALANCE_DISTRIBUTED",&
+!         description="Skip load balancing on distributed multigrids, which might be memory intensive."//&
+!                     "If not explicitly specified, runs using more than 1024 MPI tasks will default to .TRUE.",&
+!         usage="SKIP_LOAD_BALANCE_DISTRIBUTED", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+
+
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

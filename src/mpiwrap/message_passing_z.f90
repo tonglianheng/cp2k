@@ -194,7 +194,7 @@
 !> \param group ...
 !> \par MPI mapping
 !>      mpi_alltoallv
-!> \note see mp_alltoall_z11v 
+!> \note see mp_alltoall_z11v
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_z22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
@@ -294,7 +294,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_z 
+!> \note see mp_alltoall_z
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_z22 ( sb, rb, count, group )
 
@@ -338,7 +338,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_z 
+!> \note see mp_alltoall_z
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_z33 ( sb, rb, count, group )
 
@@ -382,7 +382,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_z 
+!> \note see mp_alltoall_z
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_z44 ( sb, rb, count, group )
 
@@ -428,7 +428,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_z 
+!> \note see mp_alltoall_z
 !> \note User must ensure size consistency.
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_z45 ( sb, rb, count, group )
@@ -475,7 +475,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_z 
+!> \note see mp_alltoall_z
 !> \note User must ensure size consistency.
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_z34 ( sb, rb, count, group )
@@ -522,7 +522,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_z 
+!> \note see mp_alltoall_z
 !> \note User must ensure size consistency.
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_z54 ( sb, rb, count, group )
@@ -608,7 +608,7 @@
 !> \param dest ...
 !> \param tag ...
 !> \param gid ...
-!> \note see mp_send_z 
+!> \note see mp_send_z
 ! *****************************************************************************
   SUBROUTINE mp_send_zv(msg,dest,tag,gid)
     COMPLEX(kind=real_8)                                  :: msg( : )
@@ -682,7 +682,7 @@
     MARK_USED(tag)
     MARK_USED(gid)
     ! only defined in parallel
-    CPABORT("not in parallel mode") 
+    CPABORT("not in parallel mode")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_z
@@ -693,7 +693,7 @@
 !> \param source ...
 !> \param tag ...
 !> \param gid ...
-!> \note see mp_recv_z 
+!> \note see mp_recv_z
 ! *****************************************************************************
   SUBROUTINE mp_recv_zv(msg,source,tag,gid)
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: msg( : )
@@ -728,7 +728,7 @@
     MARK_USED(tag)
     MARK_USED(gid)
     ! only defined in parallel
-    CPABORT("not in parallel mode") 
+    CPABORT("not in parallel mode")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_zv
@@ -773,7 +773,7 @@
 !> \param[in] msg             Data to broadcast
 !> \param source ...
 !> \param gid ...
-!> \note see mp_bcast_z1 
+!> \note see mp_bcast_z1
 ! *****************************************************************************
   SUBROUTINE mp_bcast_zv(msg,source,gid)
     COMPLEX(kind=real_8)                                  :: msg( : )
@@ -806,7 +806,7 @@
 !> \param[in] msg             Data to broadcast
 !> \param source ...
 !> \param gid ...
-!> \note see mp_bcast_z1 
+!> \note see mp_bcast_z1
 ! *****************************************************************************
   SUBROUTINE mp_bcast_zm(msg,source,gid)
     COMPLEX(kind=real_8)                                  :: msg( :, : )
@@ -839,7 +839,7 @@
 !> \param[in] msg             Data to broadcast
 !> \param source ...
 !> \param gid ...
-!> \note see mp_bcast_z1 
+!> \note see mp_bcast_z1
 ! *****************************************************************************
   SUBROUTINE mp_bcast_z3(msg,source,gid)
     COMPLEX(kind=real_8)                                  :: msg( :, :, : )
@@ -904,7 +904,7 @@
 !> \brief Element-wise sum of a rank-1 array on all processes.
 !> \param[in,out] msg         Vector to sum and result
 !> \param gid ...
-!> \note see mp_sum_z 
+!> \note see mp_sum_z
 ! *****************************************************************************
   SUBROUTINE mp_sum_zv(msg,gid)
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: msg( : )
@@ -941,7 +941,7 @@
 !> \brief Element-wise sum of a rank-2 array on all processes.
 !> \param[in] msg             Matrix to sum and result
 !> \param gid ...
-!> \note see mp_sum_z 
+!> \note see mp_sum_z
 ! *****************************************************************************
   SUBROUTINE mp_sum_zm(msg,gid)
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: msg( :, : )
@@ -983,9 +983,9 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-3 array on all processes.
-!> \param[in] msg             Arary to sum and result
+!> \param[in] msg             Array to sum and result
 !> \param gid ...
-!> \note see mp_sum_z 
+!> \note see mp_sum_z
 ! *****************************************************************************
   SUBROUTINE mp_sum_zm3(msg,gid)
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: msg( :, :, : )
@@ -1016,9 +1016,9 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-4 array on all processes.
-!> \param[in] msg             Arary to sum and result
+!> \param[in] msg             Array to sum and result
 !> \param gid ...
-!> \note see mp_sum_z 
+!> \note see mp_sum_z
 ! *****************************************************************************
   SUBROUTINE mp_sum_zm4(msg,gid)
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: msg( :, :, :, : )
@@ -1106,7 +1106,7 @@
 !>                            result (output)
 !> \param root ...
 !> \param gid ...
-!> \note see mp_sum_root_zv 
+!> \note see mp_sum_root_zv
 ! *****************************************************************************
   SUBROUTINE mp_sum_root_zm(msg,root,gid)
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: msg( :, : )
@@ -1150,6 +1150,47 @@
   END SUBROUTINE mp_sum_root_zm
 
 ! *****************************************************************************
+!> \brief Partial sum of data from all processes with result on each process.
+!> \param[in] msg          Matrix to sum (input)
+!> \param[out] res         Matrix containing result (output)
+!> \param[in] gid          Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_sum_partial_zm(msg,res,gid)
+    COMPLEX(kind=real_8), INTENT(IN)         :: msg( :, : )
+    COMPLEX(kind=real_8), INTENT(OUT)        :: res( :, : )
+    INTEGER, INTENT(IN)         :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_partial_zm'   &
+                                 , routineP = moduleN//':'//routineN
+
+    INTEGER                     :: handle, ierr, msglen
+#if defined(__parallel)
+    INTEGER                     :: taskid
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+    msglen = SIZE(msg)
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_comm_rank ( gid, taskid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ "//routineN )
+    IF (msglen>0) THEN
+      CALL mpi_scan(msg,res,msglen,MPI_DOUBLE_COMPLEX,MPI_SUM,gid,ierr)
+      IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_scan @ "//routineN )
+    END IF
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*(2*real_8_size))
+                ! perf_id is same as for other summation routines
+#else
+    res = msg
+    MARK_USED(gid)
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_sum_partial_zm
+
+! *****************************************************************************
 !> \brief Finds the maximum of a datum with the result left on all processes.
 !> \param[in,out] msg         Find maximum among these data (input) and
 !>                            maximum (output)
@@ -1189,7 +1230,7 @@
 !> \param[in,out] msg         Find maximum among these data (input) and
 !>                            maximum (output)
 !> \param gid ...
-!> \note see mp_max_z 
+!> \note see mp_max_z
 ! *****************************************************************************
   SUBROUTINE mp_max_zv(msg,gid)
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: msg( : )
@@ -1258,7 +1299,7 @@
 !> \param gid ...
 !> \par MPI mapping
 !>      mpi_allreduce
-!> \note see mp_min_z 
+!> \note see mp_min_z
 ! *****************************************************************************
   SUBROUTINE mp_min_zv(msg,gid)
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: msg( : )
@@ -1372,7 +1413,7 @@
 !>      All data (msg) is equal-sized
 !> \par MPI mapping
 !>      mpi_gather
-!> \note see mp_gather_z 
+!> \note see mp_gather_z
 ! *****************************************************************************
   SUBROUTINE mp_gather_zv(msg,msg_gather,root,gid)
     COMPLEX(kind=real_8), INTENT(IN)                      :: msg( : )
@@ -1413,7 +1454,7 @@
 !>      All data (msg) is equal-sized
 !> \par MPI mapping
 !>      mpi_gather
-!> \note see mp_gather_z 
+!> \note see mp_gather_z
 ! *****************************************************************************
   SUBROUTINE mp_gather_zm(msg,msg_gather,root,gid)
     COMPLEX(kind=real_8), INTENT(IN)                      :: msg( :, : )
@@ -1589,7 +1630,7 @@
 !> \param[in] msgout          Rank-2 data to send
 !> \param msgin ...
 !> \param gid ...
-!> \note see mp_allgather_z12 
+!> \note see mp_allgather_z12
 ! *****************************************************************************
   SUBROUTINE mp_allgather_z23(msgout, msgin,gid)
     COMPLEX(kind=real_8), INTENT(IN)                      :: msgout(:,:)
@@ -1627,7 +1668,7 @@
 !> \param[in] msgout          Rank-3 data to send
 !> \param msgin ...
 !> \param gid ...
-!> \note see mp_allgather_z12 
+!> \note see mp_allgather_z12
 ! *****************************************************************************
   SUBROUTINE mp_allgather_z34(msgout, msgin,gid)
     COMPLEX(kind=real_8), INTENT(IN)                      :: msgout(:,:, :)
@@ -1802,7 +1843,7 @@
 !> \param msgout ...
 !> \param source ...
 !> \param comm ...
-!> \note see mp_sendrecv_zv 
+!> \note see mp_sendrecv_zv
 ! *****************************************************************************
   SUBROUTINE mp_sendrecv_zm2(msgin,dest,msgout,source,comm)
     COMPLEX(kind=real_8), INTENT(IN)                      :: msgin( :, : )
@@ -1854,7 +1895,7 @@
 !> \param msgout ...
 !> \param source ...
 !> \param comm ...
-!> \note see mp_sendrecv_zv 
+!> \note see mp_sendrecv_zv
 ! *****************************************************************************
   SUBROUTINE mp_sendrecv_zm3(msgin,dest,msgout,source,comm)
     COMPLEX(kind=real_8), INTENT(IN)                      :: msgin( :, :, : )
@@ -1906,7 +1947,7 @@
 !> \param msgout ...
 !> \param source ...
 !> \param comm ...
-!> \note see mp_sendrecv_zv 
+!> \note see mp_sendrecv_zv
 ! *****************************************************************************
   SUBROUTINE mp_sendrecv_zm4(msgin,dest,msgout,source,comm)
     COMPLEX(kind=real_8), INTENT(IN)                      :: msgin( :, :, :, : )
@@ -2103,7 +2144,7 @@
 !> \param tag ...
 !> \par History
 !>      08.2003 created [f&j]
-!> \note see mp_isendrecv_zv 
+!> \note see mp_isendrecv_zv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2166,8 +2207,8 @@
 !> \par History
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \author fawzi
-!> \note see mp_isendrecv_zv 
-!> \note see mp_isend_zv 
+!> \note see mp_isendrecv_zv
+!> \note see mp_isend_zv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2233,8 +2274,8 @@
 !>     (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \author fawzi
-!> \note see mp_isendrecv_zv 
-!> \note see mp_isend_zv 
+!> \note see mp_isendrecv_zv
+!> \note see mp_isend_zv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2301,7 +2342,7 @@
 !> \par History
 !>      08.2003 created [f&j]
 !>      2009-11-25 [UB] Made type-generic for templates
-!> \note see mp_isendrecv_zv 
+!> \note see mp_isendrecv_zv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2363,8 +2404,8 @@
 !> \par History
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \author fawzi
-!> \note see mp_isendrecv_zv 
-!> \note see mp_irecv_zv 
+!> \note see mp_isendrecv_zv
+!> \note see mp_irecv_zv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2429,8 +2470,8 @@
 !>      9.2008 added _rm3 subroutine [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \author fawzi
-!> \note see mp_isendrecv_zv 
-!> \note see mp_irecv_zv 
+!> \note see mp_isendrecv_zv
+!> \note see mp_irecv_zv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2548,19 +2589,24 @@
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
 ! *****************************************************************************
-  SUBROUTINE mp_rget_zv(base,source,win,win_data,disp,request)
+  SUBROUTINE mp_rget_zv(base,source,win,win_data,disp,request,&
+       origin_datatype, target_datatype)
     COMPLEX(kind=real_8), DIMENSION(:), POINTER                      :: base
     INTEGER, INTENT(IN)                                 :: source, win
     COMPLEX(kind=real_8), DIMENSION(:), POINTER                      :: win_data
     INTEGER, INTENT(IN), OPTIONAL                       :: disp
     INTEGER, INTENT(OUT)                                :: request
+    TYPE(mp_type_descriptor_type), INTENT(IN), OPTIONAL :: origin_datatype, target_datatype
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rget_zv', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr, handle
 #if defined(__parallel) && (__MPI_VERSION > 2)
-    INTEGER                                  :: len, lower1
+    INTEGER                                  :: len, lower1, &
+                                                handle_origin_datatype, &
+                                                handle_target_datatype, &
+                                                origin_len, target_len
     INTEGER(kind=mpi_address_kind)           :: disp_aint
     COMPLEX(kind=real_8)                                  :: foo(1)
 #endif
@@ -2578,10 +2624,22 @@
     IF (PRESENT(disp)) THEN
        disp_aint = INT(disp,KIND=mpi_address_kind)
     ENDIF
+    handle_origin_datatype = MPI_DOUBLE_COMPLEX
+    origin_len = len
+    IF (PRESENT(origin_datatype)) THEN 
+       handle_origin_datatype = origin_datatype%type_handle
+       origin_len = 1
+    ENDIF
+    handle_target_datatype = MPI_DOUBLE_COMPLEX
+    target_len = len
+    IF (PRESENT(target_datatype)) THEN 
+       handle_target_datatype = target_datatype%type_handle
+       target_len = 1
+    ENDIF
     IF (len>0) THEN
        lower1=LBOUND(base,1)
-       CALL mpi_rget(base(lower1),len,MPI_DOUBLE_COMPLEX,source,disp_aint,&
-            len,MPI_DOUBLE_COMPLEX,win,request,ierr)
+       CALL mpi_rget(base(lower1),origin_len,handle_origin_datatype,source,disp_aint,&
+            target_len,handle_target_datatype,win,request,ierr)
     ELSE
        CALL mpi_rget(foo,len,MPI_DOUBLE_COMPLEX,source,disp_aint,&
             len,MPI_DOUBLE_COMPLEX,win,request,ierr)
@@ -2597,6 +2655,8 @@
 #else
     MARK_USED(source)
     MARK_USED(win)
+    MARK_USED(origin_datatype)
+    MARK_USED(target_datatype)
 
     request = mp_request_null
     !
@@ -2611,8 +2671,51 @@
   END SUBROUTINE mp_rget_zv
 
 ! *****************************************************************************
+!> \brief ...
+!> \param count ...
+!> \param lengths ...
+!> \param displs ...
+!> \retval type_descriptor ...
+! ***************************************************************************
+  FUNCTION mp_type_indexed_make_z(count,lengths,displs) &
+       RESULT(type_descriptor)
+    INTEGER, INTENT(IN)                      :: count
+    INTEGER, DIMENSION(1:count), INTENT(IN), TARGET  :: lengths, displs
+    TYPE(mp_type_descriptor_type)            :: type_descriptor
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_indexed_make_z', &
+         routineP = moduleN//':'//routineN
+
+    INTEGER :: ierr, handle
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    CALL mpi_type_indexed(count,lengths,displs,MPI_DOUBLE_COMPLEX,&
+         type_descriptor%type_handle,ierr)
+    IF (ierr /= 0)&
+        CPABORT("MPI_Type_Indexed @ "//routineN)
+    CALL mpi_type_commit (type_descriptor%type_handle, ierr)
+    IF (ierr /= 0)&
+       CPABORT("MPI_Type_commit @ "//routineN)
+#else
+    type_descriptor%type_handle = 7
+#endif
+    type_descriptor%length = count
+    NULLIFY(type_descriptor%subtype)
+    type_descriptor%vector_descriptor(1:2) = 1
+    type_descriptor%has_indexing = .TRUE.
+    type_descriptor%index_descriptor%index => lengths
+    type_descriptor%index_descriptor%chunks => displs
+
+    CALL mp_timestop(handle)
+
+  END FUNCTION mp_type_indexed_make_z
+
+! *****************************************************************************
 !> \brief Allocates special parallel memory
-!> \param[in]  DATA      pointer to integer array to allocate 
+!> \param[in]  DATA      pointer to integer array to allocate
 !> \param[in]  len       number of integers to allocate
 !> \param[out] stat      (optional) allocation status result
 !> \author UB
@@ -2649,7 +2752,7 @@
 
 ! *****************************************************************************
 !> \brief Deallocates special parallel memory
-!> \param[in] DATA         pointer to special memory to deallocate 
+!> \param[in] DATA         pointer to special memory to deallocate
 !> \param stat ...
 !> \author UB
 ! *****************************************************************************
@@ -2979,7 +3082,7 @@
     TYPE(mp_indexing_meta_type), INTENT(IN), OPTIONAL :: index_descriptor
     TYPE(mp_type_descriptor_type)                     :: type_descriptor
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_make_type_z', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_make_z', &
          routineP = moduleN//':'//routineN
 
     INTEGER :: ierr
@@ -3006,7 +3109,7 @@
 ! *****************************************************************************
 !> \brief Allocates an array, using MPI_ALLOC_MEM ... this is hackish
 !>        as the Fortran version returns an integer, which we take to be a C_PTR
-!> \param DATA           data array to allocate  
+!> \param DATA           data array to allocate
 !> \param[in] len        length (in data elements) of data array allocation
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
@@ -3041,7 +3144,7 @@
    END SUBROUTINE mp_alloc_mem_z
 
 ! *****************************************************************************
-!> \brief Deallocates am array, ... this is hackish 
+!> \brief Deallocates am array, ... this is hackish
 !>        as the Fortran version takes an integer, which we hope to get by reference
 !> \param DATA           data array to allocate
 !> \param[out] stat      (optional) allocation status result
