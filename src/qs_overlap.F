@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,10 +27,17 @@ MODULE qs_overlap
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_filter, &
-       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_arnoldi_extremal, &
+       cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
        cp_dbcsr_p_type, cp_dbcsr_type, dbcsr_distribution_obj, &
        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -57,6 +64,8 @@ MODULE qs_overlap
                                              uppercase
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -67,7 +76,8 @@ MODULE qs_overlap
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_overlap'
 
-  INTEGER, DIMENSION(1:56), PARAMETER :: ndod = (/0,1,1,1,0,0,0,0,0,0,1,1,1,&
+  ! should be a parameter, but this triggers a bug in OMPed code with gfortran 4.9
+  INTEGER, DIMENSION(1:56), SAVE :: ndod = (/0,1,1,1,0,0,0,0,0,0,1,1,1,&
       1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,&
       1,1,1,1,1,1,1/)
 
@@ -96,6 +106,7 @@ CONTAINS
 !> \param   calculate_forces (optional)
 !> \param   matrix_p density matrix for force calculation (optional)
 !> \param   matrixkp_p density matrix for force calculation with k_points (optional)
+!> \param qs_input ...
 !> \date    11.03.2002
 !> \par     History
 !>          Enlarged functionality of this routine. Now overlap matrices based
@@ -110,7 +121,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_overlap_matrix(ks_env, matrix_s, matrixkp_s, matrix_name,&
      nderivative, basis_type_a, basis_type_b, sab_nl, calculate_forces,&
-     matrix_p, matrixkp_p)
+     matrix_p, matrixkp_p, qs_input)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -126,13 +137,15 @@ CONTAINS
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: matrixkp_p
+    TYPE(section_vals_type), POINTER         :: qs_input
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, ikind, inode, &
-      irow, iset, jatom, jkind, jset, ldsab, maxder, maxs, n1, n2, natom, &
-      ncoa, ncob, nder, nimg, nkind, nseta, nsetb, sgfa, sgfb
+      irow, iset, jatom, jkind, jset, ldsab, maxder, maxiter, maxs, mepos, &
+      n1, n2, natom, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, nthread, &
+      output_unit, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
@@ -140,10 +153,13 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: do_forces, do_symmetric, &
-                                                dokp, found, trans, &
-                                                use_cell_mapping, use_virial
-    REAL(KIND=dp)                            :: dab, f, f0, ff, rab2
+    LOGICAL                                  :: converged, do_forces, &
+                                                do_symmetric, dokp, found, &
+                                                trans, use_cell_mapping, &
+                                                use_virial
+    REAL(KIND=dp)                            :: dab, eps_ev, f, f0, ff, &
+                                                max_ev, min_ev, rab2, &
+                                                threshold
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: owork, pmat
     REAL(KIND=dp), ALLOCATABLE, &
@@ -156,6 +172,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: sint
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_p_type), &
@@ -171,7 +188,7 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
-     NULLIFY(dft_control)
+     NULLIFY(dft_control,logger)
 
      CALL timeset(routineN,handle)
 
@@ -252,19 +269,34 @@ CONTAINS
            CPASSERT(PRESENT(matrix_p))
         END IF
         nder = MAX(nder,1)
-        ALLOCATE (pmat(ldsab,ldsab))
      END IF
      maxder = ncoset(nder)
-     ALLOCATE (oint(ldsab,ldsab,maxder),owork(ldsab,ldsab))
 
+     nthread=1
+!$   nthread=omp_get_max_threads()
+     CALL neighbor_list_iterator_create(nl_iterator,sab_nl,nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (nthread,do_forces,ldsab,maxder,nl_iterator, use_cell_mapping, do_symmetric,maxs,dokp,&
+!$OMP         ncoset,nder,use_virial,force,virial,ndod,&
+!$OMP         matrix_s, matrix_p,basis_set_list_a, basis_set_list_b, atom_of_kind, cell_to_index, matrixkp_s, matrixkp_p)  &
+!$OMP PRIVATE (mepos,oint,owork,pmat,sint,ikind,jkind,inode,iatom,jatom,rab,cell,basis_set_a,basis_set_b,atom_a,atom_b,&
+!$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
+!$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, f,  & 
+!$OMP          zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset )
+
+     mepos=0
+!$   mepos=omp_get_thread_num()
+
+     ALLOCATE (oint(ldsab,ldsab,maxder),owork(ldsab,ldsab))
+     IF (do_forces) ALLOCATE (pmat(ldsab,ldsab))
      ALLOCATE (sint(maxs))
      DO i=1,maxs
        NULLIFY (sint(i)%block)
      END DO
 
-     CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
-     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
+     DO WHILE (neighbor_list_iterate(nl_iterator,mepos=mepos)==0)
+        CALL get_iterator_info(nl_iterator,mepos=mepos,ikind=ikind,jkind=jkind,inode=inode,&
                                iatom=iatom,jatom=jatom,r=rab,cell=cell)
         basis_set_a => basis_set_list_a(ikind)%gto_basis_set
         IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
@@ -386,11 +418,13 @@ CONTAINS
                CALL decontraction(owork,pmat,scon_a(:,sgfa:),n1,nsgfa(iset),scon_b(:,sgfb:),n2,nsgfb(jset),&
                                   trans=trans)
                CALL force_trace(force_a,oint(:,:,2:4),pmat,n1,n2,3)
+!$OMP CRITICAL(forceupdate)
                force(ikind)%overlap(:,atom_a)=force(ikind)%overlap(:,atom_a) - ff*force_a(:)
                force(jkind)%overlap(:,atom_b)=force(jkind)%overlap(:,atom_b) + ff*force_a(:)
                IF( use_virial ) THEN
                   CALL virial_pair_force ( virial%pv_virial, -f0, force_a, rab)
                END IF
+!$OMP END CRITICAL(forceupdate)
             END IF
             ! Contraction
             DO i=1,maxs
@@ -398,14 +432,20 @@ CONTAINS
                IF (ndod(i) == 1 .AND. trans) f = -1.0_dp
                CALL contraction(oint(:,:,i),owork,ca=scon_a(:,sgfa:),na=n1,ma=nsgfa(iset),&
                     cb=scon_b(:,sgfb:),nb=n2,mb=nsgfb(jset),fscale=f,trans=trans)
+!$OMP CRITICAL(blockadd)
                CALL block_add("IN",owork,nsgfa(iset),nsgfb(jset),sint(i)%block,&
                     sgfa,sgfb,trans=trans)
+!$OMP END CRITICAL(blockadd)
             END DO
 
           END DO
         END DO
 
      END DO
+     IF(do_forces) DEALLOCATE (pmat)
+     DEALLOCATE (oint,owork)
+     DEALLOCATE (sint)
+!$OMP END PARALLEL
      CALL neighbor_list_iterator_release(nl_iterator)
 
      IF(dokp) THEN
@@ -422,19 +462,58 @@ CONTAINS
            CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
                 dft_control%qs_control%eps_filter_matrix)
         ENDDO
+
+        logger => cp_get_default_logger()
+        output_unit = cp_print_key_unit_nr(logger,qs_input,"DFT%PRINT%OVERLAP_CONDITION",&
+                                       extension=".Log")
+        IF (cp_print_key_should_output(logger%iter_info,qs_input,&
+                                          "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
+           IF (output_unit > 0) THEN
+              WRITE(output_unit,'(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
+           END IF
+
+           IF (cp_dbcsr_get_matrix_type(matrix_s(1)%matrix) .EQ. dbcsr_type_symmetric) THEN
+              ! parameters for matrix condition test
+              threshold=1.0E-6_dp
+              maxiter=1000
+              eps_ev=1.0E8_dp
+
+              CALL cp_dbcsr_arnoldi_extremal(matrix_s(1)%matrix, max_ev, min_ev,&
+                                             threshold=threshold, max_iter=maxiter,&
+                                             converged=converged)
+              IF (output_unit > 0) THEN
+                 IF (min_ev .NE. 0) THEN
+                    WRITE(output_unit,&
+                          '(T4,ES11.3E3,T21,A,ES11.3E3,T43,A,ES11.3E3)') &
+                          max_ev/min_ev, &
+                          "max/min ev: ",max_ev," / ",min_ev
+                 ELSE
+                    WRITE(output_unit,&
+                          '(T21,A,ES11.3E3,T43,A,ES11.3E3)') &
+                          "max/min ev: ",max_ev," / ",min_ev
+                 ENDIF
+              ENDIF
+   
+              IF (converged) THEN
+                 IF (min_ev .EQ. 0) THEN
+                    CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
+                 ELSE IF ( (max_ev / min_ev) .GT. eps_ev) THEN
+                    CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
+                 END IF
+              END IF
+           ELSE
+              IF (output_unit > 0) THEN
+                 WRITE(output_unit,'(T4,A)') &
+                       "S matrix is not symmetric - eigenvalues not available"
+              END IF
+           END IF
+        END IF
+        CALL cp_print_key_finished_output(output_unit,logger,qs_input,"DFT%PRINT%OVERLAP_CONDITION")
      END IF
 
      ! *** Release work storage ***
      DEALLOCATE (atom_of_kind)
-     DO i=1,maxs
-        NULLIFY (sint(i)%block)
-     END DO
-     DEALLOCATE (sint)
      DEALLOCATE (basis_set_list_a,basis_set_list_b)
-     DEALLOCATE (oint,owork)
-     IF(do_forces) THEN
-        DEALLOCATE (pmat)
-     END IF
 
      CALL timestop(handle)
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -67,6 +67,7 @@ MODULE environment
                                              int_size,&
                                              print_kind_info
   USE machine,                         ONLY: flush_should_flush,&
+                                             m_cpuinfo,&
                                              m_energy,&
                                              m_flush_internal,&
                                              m_memory_details,&
@@ -484,7 +485,8 @@ CONTAINS
                                                 coord_file_name, &
                                                 mm_potential_file_name, &
                                                 potential_file_name
-    CHARACTER(len=default_string_length)     :: env_num, project_name
+    CHARACTER(len=default_string_length)     :: env_num, model_name, &
+                                                project_name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
     INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
@@ -767,6 +769,10 @@ CONTAINS
             num_threads,&
             start_section_label//"| This output is from process",para_env%mepos
 
+       CALL m_cpuinfo(model_name)
+       WRITE (UNIT=output_unit,FMT="(T2,A)")&
+            start_section_label//"| CPU model name : "//TRIM(model_name)
+
        WRITE (UNIT=output_unit,FMT="()")
        WRITE (UNIT=output_unit,FMT="(T2,A)") "MEMORY| system memory details [Kb]"
        WRITE (UNIT=output_unit,FMT="(T2,A23,4A14)") "MEMORY|                ","rank 0", "min", "max", "average"
@@ -996,30 +1002,24 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_get_walltime', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=100)                       :: ctmp
-    INTEGER                                  :: ierr, itmp
+    CHARACTER(LEN=1)                         :: c1, c2
+    CHARACTER(LEN=100)                       :: txt
+    INTEGER                                  :: hours, ierr, minutes, n, &
+                                                seconds
 
-    CALL section_vals_val_get(section, keyword_name, c_val=ctmp)
+    CALL section_vals_val_get(section, keyword_name, c_val=txt)
+    n = LEN_TRIM(txt)
 
-    IF(ctmp == "") THEN
+    IF(n==0) THEN
       walltime = -1.0_dp
+    ELSE IF(INDEX(txt,":")==0) THEN
+      READ(txt(1:n), FMT=*, IOSTAT=ierr) walltime
+      IF(ierr/=0) CPABORT('Could not parse WALLTIME: "'//txt(1:n)//'"')
     ELSE
-      IF(INDEX(ctmp,":",BACK=.TRUE.).GT.0)THEN
-        walltime = 0
-        ! read seconds
-        READ(ctmp(INDEX(ctmp,":",BACK=.TRUE.)+1:),FMT=*,IOSTAT=ierr) walltime
-        CPASSERT(ierr==0)
-        ! read minutes
-        READ(ctmp(INDEX(ctmp,":",BACK=.TRUE.)-2:INDEX(ctmp,":",BACK=.TRUE.)-1),FMT=*,IOSTAT=ierr) itmp
-        walltime = walltime + REAL(60*itmp,KIND=dp)
-        ! read hours
-        READ(ctmp(1:INDEX(ctmp,":")-1),FMT=*,IOSTAT=ierr) itmp
-        CPASSERT(ierr==0)
-        walltime = walltime + REAL(3600*itmp,KIND=dp)
-      ELSE
-        READ(ctmp,FMT=*,IOSTAT=ierr) walltime
-        CPASSERT(ierr==0)
-      END IF
+      READ(txt(1:n), FMT="(I2,A1,I2,A1,I2)", IOSTAT=ierr) hours, c1, minutes, c2, seconds
+      IF(n/=8 .OR. ierr/=0 .OR. c1.NE.":" .OR. c2.NE.":")&
+         CPABORT('Could not parse WALLTIME: "'//txt(1:n)//'"')
+      walltime = 3600.0_dp*REAL(hours,dp) + 60.0_dp*REAL(minutes,dp) + REAL(seconds,dp)
     END IF
   END SUBROUTINE cp2k_get_walltime
 
@@ -1156,14 +1156,9 @@ CONTAINS
 
        ! print warning counter
        IF(iw>0) THEN
-          IF(warning_counter==0) THEN
-             WRITE (iw,"(A)") " There have been no warnings :-)"
-          ELSEIF (warning_counter==1) THEN
-             WRITE (iw,"(A)") " There has been a warning :-/"
-          ELSE
-             WRITE (iw,"(A,I4,A)") " There have been ",warning_counter, " warnings :-("
-          ENDIF
+          WRITE(iw,"(T2,A,I0)") "The number of warnings for this run is : ",warning_counter
           WRITE (iw,*) ""
+          WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
        ENDIF
 
        ! update the runtime enviroment variables

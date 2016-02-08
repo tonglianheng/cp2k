@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -93,7 +93,7 @@
 ! *****************************************************************************
   SUBROUTINE smm_process_mm_stack_z(stack_descr, params,&
        stack_size,&
-       a_data, b_data, c_data)
+       a_data, b_data, c_data, used_smm)
     INTEGER, INTENT(IN)                       :: stack_size
     TYPE(stack_descriptor_type), INTENT(IN)   :: stack_descr
     INTEGER, DIMENSION(dbcsr_ps_width,1:stack_size), &
@@ -101,6 +101,7 @@
     COMPLEX(kind=real_8), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     COMPLEX(kind=real_8), DIMENSION(*), INTENT(INOUT)      :: c_data
+    LOGICAL, INTENT(OUT)                      :: used_smm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'smm_process_mm_stack_z', &
       routineP = moduleN//':'//routineN
@@ -108,6 +109,10 @@
 #if defined(__HAS_smm_znn)
 
    INTEGER                                   :: sp
+
+   ! TODO we have no way of knowing which calls to libsmm actually resolve to BLAS
+   ! Fixing this requires an interface change to libsmm.
+   used_smm=.TRUE.
 
 #if defined(__HAS_smm_vec)
     IF(stack_descr%defined_mnk) THEN
@@ -130,6 +135,7 @@
 
 #else
     ! We do not want to abort here, fall back to BLAS.
+    used_smm=.FALSE.
     CALL blas_process_mm_stack_z(params, stack_size,a_data, b_data, c_data)
 #endif
 
@@ -146,27 +152,28 @@
 !> \param[in] a_data           Left-matrix data
 !> \param[in] b_data           Right-matrix data
 !> \param[in,out] c_data       Product data
+!> \param[out] used_smm        Flag to signal if an efficient kernel was used
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE xsmm_process_mm_stack_z(stack_descr, params,&
-       stack_size, a_data, b_data, c_data)
+       stack_size, a_data, b_data, c_data, used_smm)
 
 #if defined(__LIBXSMM) && 0
-    ! Caution: This dependency is ignored by makedep.py, because libxsmm.F is kinda special.
-    USE libxsmm,                           ONLY: libxsmm_function  => libxsmm_zmm_function,&
-                                                 libxsmm_dispatch  => libxsmm_zdispatch_all,&
-                                                 libxsmm_available => libxsmm_zavailable,&
-                                                 libxsmm_call_abc  => libxsmm_zcall_abc,&
-                                                 libxsmm_call_prf  => libxsmm_zcall_prf,&
-                                                 libxsmm_mm_abc    => libxsmm_zmm_abc,&
-                                                 libxsmm_mm_prf    => libxsmm_zmm_prf,&
-                                                 LIBXSMM_PREFETCH_DEFAULT => LIBXSMM_PREFETCH,&
+    ! Caution: This dependency is ignored by makedep.py, because libxsmm.F is kinda empty.
+    USE libxsmm,                           ONLY: libxsmm_function  => libxsmm_zmmfunction,&
+                                                 libxsmm_dispatch  => libxsmm_zmmdispatch,&
+                                                 libxsmm_available => libxsmm_zmmavailable,&
+                                                 libxsmm_call      => libxsmm_zmmcall,&
+                                                 libxsmm_gemm      => libxsmm_zgemm,&
                                                  LIBXSMM_PREFETCH_NONE,&
+                                                 LIBXSMM_PREFETCH,&
                                                  LIBXSMM_ROW_MAJOR,&
                                                  LIBXSMM_COL_MAJOR,&
                                                  LIBXSMM_MAX_MNK,&
-                                                 LIBXSMM_FLAGS,&
-                                                 LIBXSMM_JIT
+                                                 LIBXSMM_FLAGS
+
+    INTEGER, PARAMETER :: LIBXSMM_DEFAULT_PREFETCH = LIBXSMM_PREFETCH
+    INTEGER, PARAMETER :: LIBXSMM_DEFAULT_FLAGS = LIBXSMM_FLAGS
 #endif
 
     INTEGER, INTENT(IN)                       :: stack_size
@@ -176,6 +183,7 @@
     COMPLEX(kind=real_8), DIMENSION(*), TARGET, INTENT(IN) :: a_data, b_data
     COMPLEX(kind=real_8), DIMENSION(*), TARGET, &
       INTENT(INOUT)                           :: c_data
+    LOGICAL, INTENT(OUT)                      :: used_smm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'libxsmm_process_mm_stack_z', &
       routineP = moduleN//':'//routineN
@@ -183,48 +191,75 @@
 #if defined(__LIBXSMM) && 0
     REAL(real_8), PARAMETER                  :: one = 1.0_real_8
     LOGICAL                                   :: processed
-    INTEGER                                   :: fa, fb, fc, pa, pb, pc, m, n, k, sp
+    INTEGER(int_8)                            :: threshold
+    INTEGER                                   :: fa, fb, fc, m, n, k, pa, pb, pc, sp
     REAL(real_8), DIMENSION(:,:), POINTER    :: a_ptr, b_ptr, c_ptr
     TYPE(libxsmm_function)                    :: func
 
     processed = .FALSE.
+    used_smm = .FALSE.
 
-    CPASSERT(LIBXSMM_COL_MAJOR==1 .AND. LIBXSMM_ROW_MAJOR==0)
+    CPASSERT(LIBXSMM_COL_MAJOR/=0 .AND. LIBXSMM_ROW_MAJOR==0)
 
+    ! check whether the matrix stack is homogeneous or not
     IF (stack_descr%defined_mnk) THEN
-       m = stack_descr%m
-       n = stack_descr%n
-       k = stack_descr%k
-       IF(m*n*k > LIBXSMM_MAX_MNK) THEN
-          ! blocks are too large for libxsmm, BLAS is more efficient
-          CALL blas_process_mm_stack_z(params, stack_size,a_data, b_data, c_data)
+       threshold = INT(stack_descr%m, int_8) * &
+                   INT(stack_descr%n, int_8) * &
+                   INT(stack_descr%k, int_8)
+
+       ! check if matrices are too large for LIBXSMM (BLAS is likely more efficient)
+       IF(threshold > LIBXSMM_MAX_MNK) THEN
+          CALL blas_process_mm_stack_z(params, stack_size, a_data, b_data, c_data)
           processed = .TRUE.
+
        ELSE
           ! try to get a function pointer from libxsmm
-          CALL libxsmm_dispatch(func, m=m, n=n, k=k, alpha=one, beta=one, lda=0, ldb=0, ldc=0,&
-                                flags=LIBXSMM_FLAGS,  prefetch=LIBXSMM_PREFETCH_DEFAULT)
-          IF (LIBXSMM_JIT==1 .OR. libxsmm_available(func)) THEN
+          CALL libxsmm_dispatch(func, &
+               m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, alpha=one, beta=one, &
+               flags=LIBXSMM_DEFAULT_FLAGS, prefetch=LIBXSMM_DEFAULT_PREFETCH)
+
+          IF (libxsmm_available(func)) THEN
+             ! load first stack entry
+             CPASSERT(stack_size > 0)
+             pa = params(p_a_first, 1)
+             pb = params(p_b_first, 1)
+             pc = params(p_c_first, 1)
+
              DO sp = 1, stack_size-1
-                fa = params(p_a_first,sp)
-                fb = params(p_b_first,sp)
-                fc = params(p_c_first,sp)
-                IF (LIBXSMM_PREFETCH_DEFAULT==LIBXSMM_PREFETCH_NONE) THEN ! evals at compile time
-                   CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
+                fa = pa; fb = pb; fc = pc
+                ! prefetch next blocks
+                pa = params(p_a_first, sp + 1)
+                pb = params(p_b_first, sp + 1)
+                pc = params(p_c_first, sp + 1)
+
+                ! condition evaluates at compile-time (PARAMETERS)
+                IF (LIBXSMM_DEFAULT_PREFETCH /= LIBXSMM_PREFETCH_NONE) THEN
+                   CALL libxsmm_call(func, &
+                        a=a_data(fa), b=b_data(fb), c=c_data(fc), &
+                        ! provide locations of the next operand set
+                        pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
                 ELSE
-                   pa = params(p_a_first,sp+1) ! prefetch next blocks
-                   pb = params(p_b_first,sp+1)
-                   pc = params(p_c_first,sp+1)
-                   CALL libxsmm_call_prf(func, a=a_data(fa), b=b_data(fb), c=c_data(fc),&
-                                         pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
+                   CALL libxsmm_call(func, &
+                        a=a_data(fa), b=b_data(fb), c=c_data(fc))
                 ENDIF
              ENDDO
 
-             ! handle last stack entry without prefetching
-             fa = params(p_a_first,stack_size)
-             fb = params(p_b_first,stack_size)
-             fc = params(p_c_first,stack_size)
-             CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
+             ! handle last stack entry without out-of-bounds access
+             fa = pa; fb = pb; fc = pc
+
+             ! condition evaluates at compile-time (PARAMETERS)
+             IF (LIBXSMM_DEFAULT_PREFETCH /= LIBXSMM_PREFETCH_NONE) THEN
+                CALL libxsmm_call(func, &
+                     a=a_data(fa), b=b_data(fb), c=c_data(fc), &
+                     ! prefetch same blocks
+                     pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
+             ELSE
+                CALL libxsmm_call(func, &
+                     a=a_data(fa), b=b_data(fb), c=c_data(fc))
+             ENDIF
+
              processed = .TRUE.
+             used_smm  = .TRUE.
           ENDIF
        ENDIF
     ENDIF
@@ -244,8 +279,8 @@
           a_ptr(1:m,1:k) => a_data(fa:fa+(m*k))
           b_ptr(1:k,1:n) => b_data(fb:fb+(k*n))
           c_ptr(1:m,1:n) => c_data(fc:fc+(m*n))
-          CALL libxsmm_mm_abc(m=m, n=n, k=k, a=a_ptr, b=b_ptr, c=c_ptr,&
-                              flags=LIBXSMM_FLAGS, alpha=one, beta=one)
+          CALL libxsmm_gemm(m=m, n=n, k=k, a=a_ptr, b=b_ptr, c=c_ptr, &
+                            alpha=one, beta=one)
        ENDDO
     ENDIF
 
@@ -253,6 +288,7 @@
     MARK_USED(stack_descr)
     ! We do not want to abort here, fall back to BLAS.
     CALL blas_process_mm_stack_z(params, stack_size,a_data, b_data, c_data)
+    used_smm = .FALSE.
 #endif
 
   END SUBROUTINE xsmm_process_mm_stack_z

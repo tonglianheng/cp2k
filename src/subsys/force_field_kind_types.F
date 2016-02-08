@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -34,7 +34,8 @@ MODULE force_field_kind_types
                                               do_ff_mm3=11,&
                                               do_ff_mm4=12,&
                                               do_ff_fues=13,&
-                                              do_ff_legendre=14
+                                              do_ff_legendre=14,&
+                                              do_ff_opls=15
 
 ! *** Define the derived structure types ***
 

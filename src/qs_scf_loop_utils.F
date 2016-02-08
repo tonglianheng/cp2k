@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 !> \brief Utility routines for qs_scf
@@ -35,6 +35,7 @@ MODULE qs_scf_loop_utils
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: mo_set_p_type
+  USE qs_mom_methods,                  ONLY: do_mom_diag
   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                              ot_scf_mini
   USE qs_outer_scf,                    ONLY: outer_loop_gradient
@@ -176,9 +177,15 @@ CONTAINS
                                         scf_control,scf_section,diis_step,&
                                         has_unit_metric)
        ELSE
-          CALL do_general_diag(scf_env,mos,matrix_ks,&
+          IF (scf_control%diagonalization%mom) THEN
+             CALL do_mom_diag(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
                                diis_step)
+          ELSE
+             CALL do_general_diag(scf_env,mos,matrix_ks,&
+                               matrix_s,scf_control,scf_section, &
+                               diis_step)
+          END IF
           IF(scf_control%do_diag_sub) THEN
             skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
                    (scf_env%iter_count==1  .OR. scf_env%iter_delta>scf_env%subspace_env%eps_diag_sub )
@@ -526,9 +533,12 @@ CONTAINS
         inner_loop_converged=.TRUE.
         exit_inner_loop = .TRUE.
      ELSE IF (should_stop .OR.  scf_env%iter_count >= scf_control%max_scf) THEN
-        CPWARN("SCF run NOT converged")
         inner_loop_converged=.FALSE.
         exit_inner_loop = .TRUE.
+        IF (output_unit>0) THEN
+           WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
+                "Leaving inner SCF loop after reaching ",scf_env%iter_count, " steps."
+        END IF
      END IF
 
   END SUBROUTINE qs_scf_check_inner_exit

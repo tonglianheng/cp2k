@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -45,10 +45,10 @@ MODULE cp2k_info
   CHARACTER(LEN=*), PARAMETER :: compile_revision = "unknown"
 #endif
 
-  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.7"
+  CHARACTER(LEN=*), PARAMETER :: version_nr      = "4.0"
   CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2015"
   CHARACTER(LEN=*), PARAMETER :: cp2k_version    = "CP2K version "//TRIM(version_nr)
-  CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "http://www.cp2k.org/"
+  CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "https://www.cp2k.org/"
 
   ! compile time information
 #if defined(__COMPILE_ARCH)
@@ -135,9 +135,6 @@ CONTAINS
 
 #if defined(__QUIP)
     flags=TRIM(flags)//" quip"
-#endif
-#if defined(__PLUMED_CP2K)
-    flags=TRIM(flags)//" plumed"
 #endif
 
 #if defined(__ACC)
@@ -266,9 +263,6 @@ ENDIF
 #if defined __STATM_TOTAL
    flags=TRIM(flags)//" statm_total"
 #endif
-#if defined __PLUMED_CP2K
-   flags=TRIM(flags)//" plumed1.3"
-#endif
 #if defined __PLUMED2
    flags=TRIM(flags)//" plumed2"
 #endif
@@ -311,11 +305,11 @@ ENDIF
      WRITE(iunit,'(T2,A)') '!   Foundation, Inc., 51 Franklin Street, Fifth Floor,                        !'
      WRITE(iunit,'(T2,A)') '!   Boston, MA  02110-1301, USA.                                              !'
      WRITE(iunit,'(T2,A)') '!                                                                             !'
-     WRITE(iunit,'(T2,A)') '!   See also http://www.fsf.org/licensing/licenses/gpl.html                   !'
+     WRITE(iunit,'(T2,A)') '!   See also https://www.fsf.org/licensing/licenses/gpl.html                  !'
      WRITE(iunit,'(T2,A)') '!                                                                             !'
      WRITE(iunit,'(T2,A)') '!-----------------------------------------------------------------------------!'
      WRITE(iunit,'(T2,A)') '!   CP2K, including its sources and pointers to the authors                   !'
-     WRITE(iunit,'(T2,A)') '!   can be found at  http://www.cp2k.org/                                     !'
+     WRITE(iunit,'(T2,A)') '!   can be found at  https://www.cp2k.org/                                    !'
      WRITE(iunit,'(T2,A)') '!-----------------------------------------------------------------------------!'
 
   END SUBROUTINE print_cp2k_license

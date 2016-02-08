@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -92,7 +92,7 @@ MODULE linesearch
   TYPE linesearch_type
     PRIVATE
     REAL(KIND=dp), PUBLIC                          :: step_size = 0.0_dp
-    LOGICAL, PUBLIC                                :: starts = .TRUE.
+    LOGICAL, PUBLIC                                :: starts = .FALSE.
     TYPE(linesearch_adapt_type), POINTER           :: state_adapt => Null()
     TYPE(linesearch_2pnt_type), POINTER            :: state_2pnt  => Null()
     TYPE(linesearch_3pnt_type), POINTER            :: state_3pnt  => Null()
@@ -228,6 +228,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE linesearch_init_low(this)
     TYPE(linesearch_type), INTENT(INOUT)     :: this
+
+     this%step_size = 0.0_dp
+     this%starts = .TRUE.
 
      SELECT CASE(this%method)
         CASE(linesearch_method_adapt)
@@ -366,43 +369,38 @@ CONTAINS
 
     SELECT CASE(this%count)
       CASE(1)
-         step_size = this%last_step_size
+         step_size = 2.0_dp * this%last_step_size
          this%scan_step = step_size
          this%count = 2
       CASE(2)
-         IF(this%energies(1) < this%energies(2)) THEN
-            step_size = 0.5_dp * this%scan_step
-            this%scan_step = step_size
-            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| Need extra step for 2pnt"
-         ELSE
-            c = this%energies(1)
-            b = -slope
-            x2 = this%scan_step
-            a = (this%energies(2)-b*x2-c)/(x2**2)
+         c = this%energies(1)
+         b = -slope
+         x2 = this%scan_step
+         a = (this%energies(2)-b*x2-c)/(x2**2)
 
-            IF (a < 0.0_dp) THEN
-               IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| had to quench curvature"
-               a = 1.0E-15_dp
-            ENDIF
-
-            step_size = -b/(2.0_dp*a)
-            pred_energy = a*step_size**2 + b*step_size + c
-
-            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 2pnt predicted energy", pred_energy
-
-            IF (pred_energy > this%energies(1) .OR. pred_energy > this%energies(2)) THEN
-               CPABORT(label//"LS| predicted energy not below test points")
-            ENDIF
-
-            IF(step_size > this%max_step_size) THEN
-               step_size = this%max_step_size
-               IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| limiting step_size to MAX_STEP_SIZE"
-            ENDIF
-
-            this%last_step_size = step_size
-            this%count = 1
-            is_done = .TRUE.
+         IF (a < 0.0_dp) THEN
+            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| had to quench curvature"
+            a = 1.0E-15_dp
          ENDIF
+
+         step_size = -b/(2.0_dp*a)
+         pred_energy = a*step_size**2 + b*step_size + c
+
+         IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 2pnt suggested step_size: ", step_size
+         IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 2pnt predicted energy", pred_energy
+
+         IF (pred_energy > this%energies(1) .OR. pred_energy > this%energies(2)) THEN
+            CPABORT(label//"LS| predicted energy not below test points")
+         ENDIF
+
+         IF(step_size > this%max_step_size) THEN
+            step_size = this%max_step_size
+            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| limiting step_size to MAX_STEP_SIZE"
+         ENDIF
+
+         this%last_step_size = step_size
+         this%count = 1
+         is_done = .TRUE.
       CASE DEFAULT
          CPABORT("this should not happen")
     END SELECT

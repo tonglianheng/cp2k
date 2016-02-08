@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -101,9 +101,6 @@ MODULE pint_piglet
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ndim, p
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     NULLIFY(piglet_therm)
     ALLOCATE(piglet_therm)
@@ -176,14 +173,13 @@ MODULE pint_piglet
                                                 input_unit, isp, j, &
                                                 matrix_init, ns, obrac, p, &
                                                 read_err
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     REAL(KIND=dp), DIMENSION(:), POINTER     :: smallstmp
     REAL(KIND=dp), DIMENSION(piglet_therm%&
       nsp1, piglet_therm%nsp1)               :: Mtmp, tmpmatrix
     TYPE(section_vals_type), POINTER         :: rng_section, smalls_section
 
-    failure = .FALSE.
     p=piglet_therm%p
     pint_env%e_piglet = 0.0_dp
     pint_env%piglet_therm%thermostat_energy = 0.0_dp
@@ -196,13 +192,11 @@ MODULE pint_piglet
     ! Select algorithm for S-matrix initialization
     IF (matrix_init == matrix_init_cholesky) THEN
        IF (para_env%ionode) THEN
-          WRITE(UNIT=msg,FMT=*) "PIGLET| Initalizing S-matrices using cholesky decomposition."
-          CALL pint_write_line(TRIM(msg))
+          CALL pint_write_line("PIGLET| Initalizing S-matrices using cholesky decomposition.")
        END IF
     ELSE IF (matrix_init == matrix_init_diagonal) THEN
        IF (para_env%ionode) THEN
-          WRITE(UNIT=msg,FMT=*) "PIGLET| Initalizing S-matrices using full diagonalization."
-          CALL pint_write_line(TRIM(msg))
+          CALL pint_write_line("PIGLET| Initalizing S-matrices using full diagonalization.")
        END IF
     ELSE 
        CPWARN("No PIGLET init algorithm selected. Selecting cholesky decomposition")
@@ -214,8 +208,8 @@ MODULE pint_piglet
        WRITE(default_format,'(A,I10,A)') "(A", default_string_length,")"
        CALL section_vals_val_get(section, "MATRICES_FILE_NAME", &
             c_val=matrices_file_name)
-       WRITE(UNIT=msg,FMT=*) "PIGLET| Reading PIGLET matrices from file: ", TRIM(matrices_file_name)
-       CALL pint_write_line(TRIM(msg))
+       CALL pint_write_line("PIGLET| Reading PIGLET matrices from file: ")
+       CALL pint_write_line("PIGLET|    "//TRIM(matrices_file_name))
        CALL open_file(file_name=TRIM(matrices_file_name), &
             file_action="READ", file_status="OLD", unit_number=input_unit)
        read_err = 0
@@ -548,10 +542,6 @@ MODULE pint_piglet
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_piglet_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(piglet_therm)) THEN
       piglet_therm%ref_count=piglet_therm%ref_count-1

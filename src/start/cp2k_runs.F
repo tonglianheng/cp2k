@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -181,8 +181,8 @@ CONTAINS
                                                 new_env_id, prog_name_id, &
                                                 run_type_id
     INTEGER(KIND=int_8)                      :: m_memory_max_mpi
-    LOGICAL                                  :: echo_input, failure, &
-                                                I_was_ionode, was_present
+    LOGICAL                                  :: echo_input, I_was_ionode, &
+                                                was_present
     TYPE(cp_logger_type), POINTER            :: logger, sublogger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -192,7 +192,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
                                                 root_section
 
-    failure = .FALSE.
     cp2k_run_OK = .FALSE.
     was_present = .FALSE.
     NULLIFY(para_env, f_env, dft_control)
@@ -282,8 +281,7 @@ CONTAINS
             owns_out_unit=.FALSE.,&
             input=input_file,ierr=ierr)
        CPASSERT(ierr==0)
-       CALL f_env_add_defaults(new_env_id,f_env,&
-            failure=failure,handle=f_env_handle)
+       CALL f_env_add_defaults(new_env_id,f_env,handle=f_env_handle)
        force_env => f_env%force_env
        CALL force_env_get(force_env,globenv=globenv)
        CALL globenv_retain(globenv)
@@ -954,7 +952,7 @@ CONTAINS
 
     CALL section_describe_index_html(root_section,"InputReference",unit_nr)
 
-    WRITE(unit_nr,FMT='(A)') '</UL><BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
+    WRITE(unit_nr,FMT='(A)') '</UL><BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A>'
     WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
 
     CALL close_file(unit_nr)
@@ -967,7 +965,7 @@ CONTAINS
     WRITE(unit_nr,FMT='(A)') "<H1>CP2K references</H1>"
     CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE.,&
                        FORMAT=print_format_html,unit=unit_nr)
-    WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
+    WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A>'
     WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
     CALL close_file(unit_nr)
 
@@ -977,7 +975,7 @@ CONTAINS
     WRITE(unit_nr,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k units list</TITLE>"
     WRITE(unit_nr,FMT='(A)') "<H1>CP2K Available Units of Measurement</H1>"
     CALL print_all_units(unit_nr=unit_nr)
-    WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
+    WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A>'
     WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
     CALL close_file(unit_nr)
   END SUBROUTINE write_cp2k_html_manual

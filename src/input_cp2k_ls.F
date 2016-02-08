@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -256,6 +256,12 @@ CONTAINS
     CALL keyword_create(keyword, name="PERFORM_MU_SCAN",&
          description="Do a scan of the chemical potential after the SCF",&
          usage="PERFORM_MU_SCAN", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CHECK_S_INV",&
+         description="Perform an accuracy check on the inverse/sqrt of the s matrix.",&
+         usage="CHECK_S_INV", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -554,7 +560,7 @@ CONTAINS
      CALL keyword_release(keyword)
 
      CALL keyword_create(keyword, name="NP_SYMB_FACT",&
-          description="Number of processors for PARMETIS/PT-SCOTCH. Only used if the ordering == 0. "//&
+          description="Number of processors for PARMETIS/PT-SCOTCH. Only used if ORDERING is set to PARALLEL. "//&
           "If 0, the number of processors for PARMETIS/PT-SCOTCH will be set equal to the number of "//&
           "MPI ranks per pole. Note: if more than one processor is used, a segmentation fault may occur in the "//&
           "symbolic factorization phase.",&

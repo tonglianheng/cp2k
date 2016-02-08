@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -160,16 +160,18 @@ CONTAINS
         CALL build_overlap_matrix(ks_env,nderivative=1, matrix_s=matrix_s,&
                                   matrix_name="OVERLAP",&
                                   basis_type_a="ORB",&
-                                  basis_type_b="ORB", &
-                                  sab_nl=sab_orb)
+                                  basis_type_b="ORB",&
+                                  sab_nl=sab_orb,&
+                                  qs_input=qs_env%input)
         CALL set_ks_env(ks_env,matrix_s=matrix_s)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      ELSE
         CALL build_overlap_matrix(ks_env,matrix_s=matrix_s,&
                                   matrix_name="OVERLAP",&
                                   basis_type_a="ORB",&
-                                  basis_type_b="ORB", &
-                                  sab_nl=sab_orb)
+                                  basis_type_b="ORB",&
+                                  sab_nl=sab_orb,&
+                                  qs_input=qs_env%input)
         CALL set_ks_env(ks_env,matrix_s=matrix_s)
         use_virial = .FALSE.
      END IF

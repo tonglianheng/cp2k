@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,6 +21,8 @@ MODULE transport
                                              C_LOC,&
                                              C_NULL_PTR,&
                                              C_PTR
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE bibliography,                    ONLY: Bruck2014,&
                                              cite_reference
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
@@ -33,16 +35,22 @@ MODULE transport
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_constants,                 ONLY: transport_diagscalapack
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_environ
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE transport_env_types,             ONLY: cp2k_csr_interop_type,&
                                              cp2k_transport_parameters,&
@@ -104,6 +112,8 @@ CONTAINS
 
     ALLOCATE(transport_env)
     CALL transport_init_read_input(input,transport_env)
+    CALL transport_set_contact_params(qs_env, transport_env)
+    CALL transport_set_cutout_indices(transport_env)
     CALL cp_dbcsr_init(transport_env%template_matrix_sym)
     CALL cp_dbcsr_init(transport_env%template_matrix_nosym)
     CALL cp_dbcsr_init(transport_env%csr_sparsity)
@@ -127,24 +137,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'transport_init_read_input', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
-    TYPE(section_vals_type), POINTER         :: transport_section
+    INTEGER                                  :: handle, i, n_contacts
+    INTEGER, DIMENSION(:), POINTER           :: i_vals
+    LOGICAL                                  :: contact_explicit, injecting
+    TYPE(section_vals_type), POINTER         :: contact_section, &
+                                                transport_section
 
     CALL timeset(routineN,handle)
 
     transport_section => section_vals_get_subs_vals(input,"DFT%TRANSPORT")
+    contact_section => section_vals_get_subs_vals(transport_section, "CONTACT")
+    CALL section_vals_get(contact_section, explicit=contact_explicit, n_repetition=n_contacts)
     
+    NULLIFY(i_vals)
 ! read from input
-    CALL section_vals_val_get(transport_section,"DENSITY_MATRIX_CONSTRUCTION_METHOD",i_val=transport_env%params%method)
-    CALL section_vals_val_get(transport_section,"BANDWIDTH",i_val=transport_env%params%bandwidth)
-    CALL section_vals_val_get(transport_section,"N_CELLS",i_val=transport_env%params%n_cells)
+    CALL section_vals_val_get(transport_section,"TRANSPORT_METHOD",i_val=transport_env%params%method)
+    CALL section_vals_val_get(transport_section,"INJECTION_METHOD",i_val=transport_env%params%injection_method)
+    CALL section_vals_val_get(transport_section,"LINEAR_SOLVER",i_val=transport_env%params%linear_solver)
     CALL section_vals_val_get(transport_section,"N_ABSCISSAE",i_val=transport_env%params%n_abscissae)
     CALL section_vals_val_get(transport_section,"N_KPOINTS",i_val=transport_env%params%n_kpoint)
     CALL section_vals_val_get(transport_section,"NUM_INTERVAL",i_val=transport_env%params%num_interval)
-    CALL section_vals_val_get(transport_section,"NUM_CONTACTS",i_val=transport_env%params%num_contacts)
-    CALL section_vals_val_get(transport_section,"N_DOF",i_val=transport_env%params%ndof)
     CALL section_vals_val_get(transport_section,"TASKS_PER_POINT",i_val=transport_env%params%tasks_per_point)
-    CALL section_vals_val_get(transport_section,"CORES_PER_NODE",i_val=transport_env%params%cores_per_node)
     CALL section_vals_val_get(transport_section,"COLZERO_THRESHOLD",r_val=transport_env%params%colzero_threshold)
     CALL section_vals_val_get(transport_section,"EPS_LIMIT",r_val=transport_env%params%eps_limit)
     CALL section_vals_val_get(transport_section,"EPS_DECAY",r_val=transport_env%params%eps_decay)
@@ -157,6 +170,37 @@ CONTAINS
     CALL section_vals_val_get(transport_section,"TEMPERATURE",r_val=transport_env%params%temperature)
     CALL section_vals_val_get(transport_section,"ROW_DISTRIBUTION",i_val=transport_env%row_dist)
     CALL section_vals_val_get(transport_section,"CSR_SCREENING",l_val=transport_env%csr_screening)
+    CALL section_vals_val_get(transport_section,"CUTOUT",i_vals=i_vals)
+    transport_env%params%cutout = i_vals
+
+    IF (contact_explicit) THEN
+       transport_env%params%num_contacts = n_contacts
+       ALLOCATE(transport_env%contacts_data(5*n_contacts))
+       DO i = 1, n_contacts
+          CALL section_vals_val_get(contact_section,"BANDWIDTH",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+1))
+          CALL section_vals_val_get(contact_section,"START",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+2))
+          CALL section_vals_val_get(contact_section,"N_ATOMS",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+3))
+          CALL section_vals_val_get(contact_section,"INJECTION_SIGN",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+4))
+          CALL section_vals_val_get(contact_section,"INJECTING_CONTACT",i_rep_section=i,l_val=injecting)
+          IF (injecting) THEN 
+             transport_env%contacts_data((i-1)*5+5) = 1
+          ELSE 
+             transport_env%contacts_data((i-1)*5+5) = 0
+          END IF
+       END DO
+       transport_env%params%contacts_data = C_LOC(transport_env%contacts_data(1))
+    ELSE
+       IF (transport_env%params%method .EQ. transport_diagscalapack) THEN
+          transport_env%params%num_contacts = 0
+          transport_env%params%contacts_data  = C_NULL_PTR
+       ELSE
+          CPABORT("No contact region is defined.")
+       END IF
+    END IF
 
     CALL timestop(handle)
 
@@ -226,7 +270,9 @@ CONTAINS
                                   transport_env%s_matrix, &
                                   transport_env%row_dist, &
                                   csr_sparsity = transport_env%csr_sparsity, &
-                                  numnodes = transport_env%params%tasks_per_point)
+                                  numnodes = transport_env%params%tasks_per_point, &
+                                  start_cut_row = transport_env%cutout_indices(1),&
+                                  end_cut_row = transport_env%cutout_indices(2))
 
     CALL cp_csr_print_sparsity(transport_env%s_matrix, unit_nr)
 
@@ -247,17 +293,22 @@ CONTAINS
 !> \param[inout] matrix_p       DBCSR density matrix
 !> \param[in]    nelectron_spin number of electrons 
 !> \param[in]    natoms         number of atoms 
+!> \param[in]    energy_diff    scf energy difference
+!> \param[in]    extra_scf      whether or not an extra scf step will be performed
 !> \par History
 !>       12.2012 created [Hossein Bani-Hashemian]
 !>       12.2014 revised [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-   SUBROUTINE external_scf_method(transport_env, matrix_s, matrix_ks, matrix_p, nelectron_spin, natoms)
+   SUBROUTINE external_scf_method(transport_env, matrix_s, matrix_ks, matrix_p, &
+                                  nelectron_spin, natoms, energy_diff, extra_scf)
 
     TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_s, matrix_ks
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
     INTEGER, INTENT(IN)                      :: nelectron_spin, natoms
+    REAL(dp), INTENT(IN)                     :: energy_diff
+    LOGICAL, INTENT(IN)                      :: extra_scf
 
     CHARACTER(len=*), PARAMETER :: routineN = 'external_scf_method', &
       routineP = moduleN//':'//routineN
@@ -277,7 +328,9 @@ CONTAINS
 
     transport_env%params%n_occ = nelectron_spin
     transport_env%params%n_atoms = natoms
+    transport_env%params%energy_diff = energy_diff
     transport_env%params%evoltfactor = evolt
+    transport_env%params%extra_scf = extra_scf
 
     CALL csr_interop_nullify(s_mat)
     CALL csr_interop_nullify(ks_mat)
@@ -289,7 +342,7 @@ CONTAINS
     CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_ks)
     CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%ks_matrix, ks_mat)
 
-    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
+    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_p)
     CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%p_matrix, p_mat)
 
     CALL c_method(transport_env%params, s_mat, ks_mat, p_mat)
@@ -456,6 +509,84 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE convert_csr_interop_to_dbcsr
+
+! *****************************************************************************
+!> \brief extraxts zeff (effective nuclear charges per atom) and nsgf (the size 
+!>   of spherical Gaussian basis functions per atom) from qs_env and intializes 
+!>   the corresponding arrays in transport_env%params 
+!> \param[in] qs_env qs environment 
+!> \param[inout] transport_env transport environment
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE transport_set_contact_params(qs_env, transport_env)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'transport_set_contact_params', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iat, ikind, natom, nkind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    REAL(KIND=dp)                            :: zeff
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+
+    CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
+    CALL get_qs_env(qs_env, particle_set=particle_set,&
+                            qs_kind_set=qs_kind_set, &
+                            atomic_kind_set=atomic_kind_set)
+
+    ALLOCATE (transport_env%nsgf(natom))
+    ALLOCATE (transport_env%zeff(natom))
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=transport_env%nsgf)
+
+    ! reference charges
+    DO ikind = 1, nkind
+       CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind,atom_list=atom_list)
+       DO iat = 1, SIZE(atom_list)
+          i = atom_list(iat)
+          transport_env%zeff(i) = zeff
+       END DO
+    END DO
+
+    transport_env%params%nsgf = C_LOC(transport_env%nsgf(1))
+    transport_env%params%zeff = C_LOC(transport_env%zeff(1))
+
+  END SUBROUTINE transport_set_contact_params
+
+! *****************************************************************************
+!> \brief sets matrix cutout indices 
+!> \param[inout] transport_env transport environment
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE transport_set_cutout_indices(transport_env)
+    TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'transport_set_cutout_indices', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: natom
+    INTEGER, DIMENSION(2)                    :: co_natom
+    LOGICAL                                  :: invalid_cutout
+
+    natom = SIZE(transport_env%nsgf)
+    co_natom = transport_env%params%cutout
+
+    invalid_cutout = (co_natom(1) .LT. 0) .OR. (co_natom(1) .GT. natom) .OR. &
+                     (co_natom(2) .LT. 0) .OR. (co_natom(2) .GT. natom)
+    IF (invalid_cutout) CPABORT("Invalid cutout.")
+
+    transport_env%cutout_indices(1) = SUM(transport_env%nsgf(1:co_natom(1)))
+    transport_env%cutout_indices(2) = SUM(transport_env%nsgf(natom-co_natom(2)+1:natom))
+
+  END SUBROUTINE transport_set_cutout_indices
 
 END MODULE transport
 

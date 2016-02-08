@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,6 @@ MODULE domain_submatrix_methods
                                              cp_logger_type
   USE domain_submatrix_types,          ONLY: domain_map_type,&
                                              domain_submatrix_type,&
-                                             select_row,&
                                              select_row_col
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_allgather,&

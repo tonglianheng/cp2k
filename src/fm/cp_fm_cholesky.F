@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -91,7 +91,8 @@ CONTAINS
     IF (PRESENT(info_out)) THEN
       info_out = info
     ELSE
-      CPASSERT(info==0)
+      IF (info/=0) &
+        CPABORT("Cholesky failed: the matrix is not positive definite or ill-conditioned.")
     END IF
 
     CALL timestop(handle)

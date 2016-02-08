@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -164,6 +164,10 @@ MODULE input_constants
   ! Pseudopotential type for Atom Code
   INTEGER, PARAMETER, PUBLIC               :: no_pseudo=0,&
                                               gth_pseudo=1
+  ! Confinement type for Atom Code
+  INTEGER, PARAMETER, PUBLIC               :: no_conf=0,&
+                                              poly_conf=1,&
+                                              barrier_conf=2
   ! BAND
   INTEGER, PARAMETER, PUBLIC               :: do_b_neb=0,&
                                               do_it_neb=1,&
@@ -192,7 +196,11 @@ MODULE input_constants
                                               sparse_guess=8,&
                                               almo_scf_guess=9,&
                                               molecular_guess=10
-                                             
+
+  ! Projection formulas for the maximum overlap method
+  INTEGER, PARAMETER, PUBLIC               :: momproj_sum=0,&
+                                              momproj_norm=1
+
   INTEGER, PARAMETER, PUBLIC               :: almo_frz_none=0,&
                                               almo_frz_isolated=1,&
                                               almo_frz_crystal=2,&
@@ -287,6 +295,41 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: helium_cell_shape_none=0,&
                                               helium_cell_shape_cube=1,&
                                               helium_cell_shape_octahedron=2
+
+  ! helium-solute interaction potentials
+  INTEGER, PARAMETER, PUBLIC               :: helium_solute_intpot_none=0,&
+                                              helium_solute_intpot_mwater=1
+
+  ! helium force selection
+  INTEGER, PARAMETER, PUBLIC               :: helium_forces_average = 0, &
+                                              helium_forces_last = 1
+  ! superfluid density, estimators
+  INTEGER, PARAMETER, PUBLIC               :: estimator_none=1,&
+                                              estimator_parea=2,&
+                                              estimator_wnumber=3, &
+                                              estimator_pcycle=4, &
+                                              estimator_weighted=5, &
+                                              estimator_normalization=6
+
+  ! superfluid density, denominator selector
+  INTEGER, PARAMETER, PUBLIC               :: denominator_unity=1,&
+                                              denominator_natoms=2,&
+                                              denominator_inertia=3,&
+                                              denominator_rperp2=4
+
+  ! helium-sampling algorithms
+  INTEGER, PARAMETER, PUBLIC               :: helium_sampling_ceperley=0
+
+  ! distribution types for sampling path lengths
+  INTEGER, PARAMETER, PUBLIC               :: helium_mdist_singlev=1,&
+                                              helium_mdist_uniform=2,&
+                                              helium_mdist_linear=3,&
+                                              helium_mdist_quadratic=4,&
+                                              helium_mdist_exponential=5,&
+                                              helium_mdist_gaussian=6
+
+  INTEGER, PARAMETER, PUBLIC               :: perm_plain=1,&
+                                              perm_cycle=2
 
   ! Free Energy methods
   INTEGER, PARAMETER, PUBLIC               :: do_fe_meta=0,&
@@ -835,11 +878,14 @@ MODULE input_constants
                                               ri_mp2_laplace=9,&
                                               mp2_ri_optimize_basis=10,&
                                               wfc_mm_style_gemm=11,&
-                                              wfc_mm_style_syrk=12
+                                              wfc_mm_style_syrk=12,&
+                                              ri_coulomb=13,&
+                                              ri_overlap=14
 
   ! G0W0 parameter
   INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_none=0,&
-                                              ri_rpa_g0w0_crossing_z_shot=1
+                                              ri_rpa_g0w0_crossing_z_shot=1,&
+                                              ri_rpa_g0w0_crossing_newton=2
 
   ! periodic RESP parameters
   INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir=0,&
@@ -906,9 +952,17 @@ MODULE input_constants
                                               dispersion_d3 =200
 
   ! Transport section
-  INTEGER, PARAMETER, PUBLIC               :: misc_method=0,&
-                                              scalapack_diagonalization=1,&
-                                              exper_code=2,&
-                                              do_transport=3
+  INTEGER, PARAMETER, PUBLIC               :: transport_writeout      = 0,&
+                                              transport_diagscalapack = 1,&
+                                              transport_localscf      = 2,&
+                                              transport_negf          = 3,&
+                                              transport_transmission  = 4,&
+                                              linsolver_splitsolve = 11,&
+                                              linsolver_superlu    = 12,&
+                                              linsolver_mumps      = 13,& 
+                                              injmethod_evp    = 21,&
+                                              injmethod_beyn   = 22,& 
+                                              injsign_positive =  1,&
+                                              injsign_negative = -1
 
 END MODULE input_constants

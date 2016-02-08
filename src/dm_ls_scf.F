@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -55,7 +55,7 @@ MODULE dm_ls_scf
        ls_s_inversion_hotelling, ls_s_inversion_none, &
        ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
        ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, &
-       ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4
+       ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4, transport_transmission
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
@@ -79,7 +79,6 @@ MODULE dm_ls_scf
                                              molecule_type
   USE pao_main,                        ONLY: pao_finalize,&
                                              pao_init,&
-                                             pao_scf_init,&
                                              pao_update
   USE particle_types,                  ONLY: particle_type
   USE pexsi_methods,                   ONLY: density_matrix_pexsi,&
@@ -142,9 +141,8 @@ CONTAINS
     pao_is_done = .FALSE.
     DO WHILE(.NOT. pao_is_done)
         CALL ls_scf_init_scf(qs_env, ls_scf_env)
-        CALL pao_scf_init(qs_env, ls_scf_env)
-        CALL ls_scf_main(qs_env, ls_scf_env)
         CALL pao_update(qs_env, ls_scf_env, pao_is_done)
+        CALL ls_scf_main(qs_env, ls_scf_env)
         CALL ls_scf_post(qs_env, ls_scf_env)
      END DO
 
@@ -481,12 +479,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, project_name
-    INTEGER                                  :: handle, ispin, istore, &
-                                                nelectron_spin_real, unit_nr
-    REAL(KIND=dp)                            :: cs_pos, homo_spin, lumo_spin, &
-                                                mu_spin
-    TYPE(cp_dbcsr_type)                      :: matrix_ks_deviation_tmp, &
-                                                matrix_p_tmp, matrix_tmp1
+    INTEGER                                  :: handle, ispin, istore, unit_nr
+    REAL(KIND=dp)                            :: cs_pos
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -507,38 +502,13 @@ CONTAINS
           IF (unit_nr>0) THEN
              WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
           ENDIF
-
-          ! perform trs4 once to get a full dm required by other purification methods
           IF (ls_scf_env%do_transport .OR. ls_scf_env%do_pexsi) THEN
              IF (unit_nr>0) THEN
-                WRITE(unit_nr,'(T2,A)') "DM has the sparsity of S! "
-                WRITE(unit_nr,'(T2,A)') "TRS4 will be performed once to prepare "//&
-                                        "a full DM to store in the restart file."
-             ENDIF
-
-             CALL cp_dbcsr_init(matrix_p_tmp)
-             CALL cp_dbcsr_create(matrix_p_tmp,template=ls_scf_env%matrix_ks(ispin))
-             CALL cp_dbcsr_set(matrix_p_tmp,0.0_dp)
-
-             CALL cp_dbcsr_init(matrix_ks_deviation_tmp)
-             CALL cp_dbcsr_create(matrix_ks_deviation_tmp,template=ls_scf_env%matrix_ks(ispin))
-             CALL cp_dbcsr_set(matrix_ks_deviation_tmp,0.0_dp)
-
-             nelectron_spin_real=ls_scf_env%nelectron_spin(ispin)
-             IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
-             CALL density_matrix_trs4(matrix_p_tmp, ls_scf_env%matrix_ks(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
-                                      nelectron_spin_real, 1.0E-06_dp, homo_spin, lumo_spin, mu_spin, &
-                                      dynamic_threshold=.FALSE., matrix_ks_deviation=matrix_ks_deviation_tmp, &
-                                      eps_lanczos=1.0E-03_dp, max_iter_lanczos=128)
-             IF (ls_scf_env%nspins==1) CALL cp_dbcsr_scale(matrix_p_tmp, 2.0_dp)
-
-             CALL cp_dbcsr_binary_write(matrix_p_tmp,file_name)
-
-             CALL cp_dbcsr_release(matrix_p_tmp)
-             CALL cp_dbcsr_release(matrix_ks_deviation_tmp)
-          ELSE
-             CALL cp_dbcsr_binary_write(ls_scf_env%matrix_p(ispin),file_name)
-          END IF 
+                WRITE(unit_nr,'(T6,A)') "The restart DM "//TRIM(file_name)//" has the sparsity of S, therefore,"
+                WRITE(unit_nr,'(T6,A)') "not compatible with methods that require a full DM! "
+             END IF
+          END IF
+          CALL cp_dbcsr_binary_write(ls_scf_env%matrix_p(ispin),file_name)
        ENDDO
     END IF
 
@@ -624,6 +594,7 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"MATRIX_CLUSTER_TYPE",i_val=ls_scf_env%ls_mstruct%cluster_type)
     CALL section_vals_val_get(ls_scf_section,"SINGLE_PRECISION_MATRICES",l_val=ls_scf_env%ls_mstruct%single_precision)
     CALL section_vals_val_get(ls_scf_section,"S_INVERSION",i_val=ls_scf_env%s_inversion_type)
+    CALL section_vals_val_get(ls_scf_section,"CHECK_S_INV",l_val=ls_scf_env%check_s_inv)
     CALL section_vals_val_get(ls_scf_section,"REPORT_ALL_SPARSITIES",l_val=ls_scf_env%report_all_sparsities)
     CALL section_vals_val_get(ls_scf_section,"PERFORM_MU_SCAN",l_val=ls_scf_env%perform_mu_scan)
     CALL section_vals_val_get(ls_scf_section,"PURIFICATION_METHOD",i_val=ls_scf_env%purification_method)
@@ -675,22 +646,20 @@ CONTAINS
                           .AND. .NOT. ls_scf_env%do_transport
     IF (ls_scf_env%do_pexsi) THEN
       CALL pexsi_init_read_input(pexsi_section,ls_scf_env%pexsi)
-      IF (.NOT. ls_scf_env%restart_write) THEN
-        ! Turn off S inversion (not used for PEXSI).
-        ! Methods such as purification must thus be avoided... which is OK, as the density matrix computed in pexsi is
-        ! a finite temperature one, and thus not idempotent
-        ls_scf_env%s_inversion_type = ls_s_inversion_none
-        ! PEXSI needs the sparsity pattern of S to be fixed by the upper bound ~ Int[|phi_a||phi_b|], 
-        ! they can not be filtered based on magnitude, as small elements in S (e.g. symmetry) do not necessarily
-        ! correspond to small elements in the density matrix, with non-zero contributions to the total density.
-        ! the easiest way to make sure S is untouched is to set eps_filter to zero (which should be inconsequential,
-        ! as a run based on pexsi should execute exactly zero multiplications)
-        ls_scf_env%eps_filter = 0.0_dp
-      END IF
+      ! Turn off S inversion (not used for PEXSI).
+      ! Methods such as purification must thus be avoided... which is OK, as the density matrix computed in pexsi is
+      ! a finite temperature one, and thus not idempotent
+      ls_scf_env%s_inversion_type = ls_s_inversion_none
+      ! PEXSI needs the sparsity pattern of S to be fixed by the upper bound ~ Int[|phi_a||phi_b|], 
+      ! they can not be filtered based on magnitude, as small elements in S (e.g. symmetry) do not necessarily
+      ! correspond to small elements in the density matrix, with non-zero contributions to the total density.
+      ! the easiest way to make sure S is untouched is to set eps_filter to zero (which should be inconsequential,
+      ! as a run based on pexsi should execute exactly zero multiplications)
+      ls_scf_env%eps_filter = 0.0_dp
     ENDIF
 
     ! Turn off S inversion and set eps_filter to zero for transport
-    IF (ls_scf_env%do_transport .AND. .NOT. ls_scf_env%restart_write) THEN
+    IF (ls_scf_env%do_transport) THEN
       ls_scf_env%s_inversion_type = ls_s_inversion_none 
       ls_scf_env%eps_filter = 0.0_dp
     END IF
@@ -718,9 +687,9 @@ CONTAINS
 
     ! verify some requirements for the curvy steps
     IF(ls_scf_env%curvy_steps .AND. ls_scf_env%do_pexsi)&
-       CPABORT("CURVY_STEPS can not be used together with PEXSI.")
+       CPABORT("CURVY_STEPS cannot be used together with PEXSI.")
     IF(ls_scf_env%curvy_steps .AND. ls_scf_env%do_transport)&
-       CPABORT("CURVY_STEPS can not be used together with TRANSPORT.")
+       CPABORT("CURVY_STEPS cannot be used together with TRANSPORT.")
     IF(ls_scf_env%curvy_steps.AND.ls_scf_env%has_s_preconditioner)&
        CPABORT("S Preconditioning not implemented in combination with CURVY_STEPS.")
     IF(ls_scf_env%curvy_steps.AND..NOT.ls_scf_env%use_s_sqrt)&
@@ -853,8 +822,9 @@ CONTAINS
     INTEGER                                  :: handle, iscf, ispin, &
                                                 nelectron_spin_real, nmixing, &
                                                 nspin, unit_nr
-    LOGICAL                                  :: check_convergence, diis_step, &
-                                                do_transport, should_stop
+    LOGICAL :: check_convergence, diis_step, do_transport, extra_scf, &
+      maxscf_reached, scf_converged, should_stop, transm_maxscf_reached, &
+      transm_scf_converged
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
                                                 energy_old, eps_diis, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -892,6 +862,9 @@ CONTAINS
     ls_scf_env%homo_spin(:) = 0.0_dp
     ls_scf_env%lumo_spin(:) = 0.0_dp
 
+    transm_scf_converged = .FALSE. 
+    transm_maxscf_reached = .FALSE.
+
     energy_old=0.0_dp
     IF(ls_scf_env%scf_history%istore>0)energy_old=ls_scf_env%energy_init
     check_convergence=.TRUE.
@@ -916,10 +889,27 @@ CONTAINS
 
       ! check on max SCF or timing/exit
       CALL external_control(should_stop,"SCF",start_time=qs_env%start_time,target_time=qs_env%target_time)
-      IF (should_stop .OR. iscf>=ls_scf_env%max_scf) THEN
-         IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
-         EXIT
-      ENDIF
+      IF (do_transport) THEN 
+         maxscf_reached = should_stop .OR. iscf>=ls_scf_env%max_scf
+         ! one extra scf step for post-processing in transmission calculations
+         IF (transport_env%params%method .EQ. transport_transmission) THEN
+            IF (transm_maxscf_reached) THEN 
+               IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
+               EXIT
+            END IF
+            transm_maxscf_reached = maxscf_reached
+         ELSE
+            IF (maxscf_reached) THEN
+               IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
+               EXIT
+            ENDIF
+         END IF
+      ELSE
+         IF (should_stop .OR. iscf>=ls_scf_env%max_scf) THEN
+            IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
+            EXIT
+         ENDIF
+      END IF
 
       t1 = m_walltime()
       iscf=iscf+1
@@ -1015,9 +1005,11 @@ CONTAINS
                IF(ls_scf_env%ls_mstruct%cluster_type .NE. ls_cluster_atomic)&
                   CPABORT("NOT YET IMPLEMENTED with molecular clustering. ")
 
+               extra_scf = maxscf_reached .OR. scf_converged
                ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
                CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &
-                                        ls_scf_env%matrix_p(ispin), nelectron_spin_real, ls_scf_env%natoms)
+                                        ls_scf_env%matrix_p(ispin), nelectron_spin_real, ls_scf_env%natoms, &
+                                        energy_diff, extra_scf)
 
             ELSE 
                SELECT CASE(ls_scf_env%purification_method)
@@ -1080,8 +1072,19 @@ CONTAINS
          CALL m_flush(unit_nr)
       ENDIF
 
-      ! exit criterium on the energy only for the time being
-      IF (check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
+      IF (do_transport) THEN 
+         scf_converged = check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total
+         ! one extra scf step for post-processing in transmission calculations
+         IF (transport_env%params%method .EQ. transport_transmission) THEN
+            IF (transm_scf_converged) EXIT
+            transm_scf_converged = scf_converged
+         ELSE
+            IF (scf_converged) EXIT
+         END IF
+      ELSE 
+         ! exit criterium on the energy only for the time being
+         IF (check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
+      END IF
 
       IF (ls_scf_env%ls_diis) THEN
 ! diis_buffer, buffer with 1) Kohn-Sham history matrix, 

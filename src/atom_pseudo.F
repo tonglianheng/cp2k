@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -31,7 +31,8 @@ MODULE atom_pseudo
                                              cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE input_constants,                 ONLY: do_analytic
+  USE input_constants,                 ONLY: do_analytic,&
+                                             poly_conf
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -75,6 +76,7 @@ CONTAINS
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, pp_calc
+    REAL(KIND=dp)                            :: ne, nm
     REAL(KIND=dp), DIMENSION(0:3, 10)        :: pocc
     TYPE(atom_basis_type), POINTER           :: ae_basis, pp_basis
     TYPE(atom_integrals), POINTER            :: ae_int, pp_int
@@ -132,11 +134,13 @@ CONTAINS
     IF ( .NOT.p_pot%confinement .AND. .NOT.ae_pot%confinement ) THEN
       !set default confinement potential
       p_pot%confinement = .TRUE.
+      p_pot%conf_type = poly_conf
       p_pot%scon = 2.0_dp
       p_pot%acon = 0.5_dp
       ! this seems to be the default in the old code
       p_pot%rcon = (2._dp*ptable(zval)%covalent_radius*bohr)**2
       ae_pot%confinement = .TRUE.
+      ae_pot%conf_type = poly_conf
       ae_pot%scon = 2.0_dp
       ae_pot%acon = 0.5_dp
       ! this seems to be the default in the old code
@@ -227,6 +231,30 @@ CONTAINS
         state%core=0._dp
         CALL set_atom(atom_refs(in,im)%atom,zcore=zval,pp_calc=.FALSE.)
 
+        IF(state%multiplicity/=-1) THEN
+          ! set alpha and beta occupations
+          state%occa = 0._dp
+          state%occb = 0._dp
+          DO l=0,3
+            nm=REAL((2*l+1),KIND=dp)
+            DO k=1,10
+              ne = state%occupation(l,k)
+              IF(ne==0._dp) THEN  !empty shell
+                EXIT  !assume there are no holes
+              ELSEIF(ne==2._dp*nm) THEN  !closed shell
+                state%occa(l,k)=nm
+                state%occb(l,k)=nm
+              ELSEIF(state%multiplicity==-2) THEN !High spin case
+                state%occa(l,k)=MIN(ne,nm)
+                state%occb(l,k)=MAX(0._dp,ne-nm)
+              ELSE
+                state%occa(l,k)=0.5_dp*(ne+state%multiplicity-1._dp)
+                state%occb(l,k)=ne-state%occa(l,k)
+              END IF
+            END DO
+          END DO
+        END IF
+
         ! set occupations for pseudopotential calculation
         CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist)
         CALL atom_set_occupation(tmpstringlist,statepp%core,pocc)
@@ -244,6 +272,10 @@ CONTAINS
             END IF
           END DO
         END DO
+        IF(state%multiplicity/=-1) THEN
+          statepp%occa = state%occa - statepp%core/2
+          statepp%occb = state%occb - statepp%core/2
+        END IF
 
         statepp%maxl_occ = get_maxl_occ(statepp%occ)
         statepp%maxn_occ = get_maxn_occ(statepp%occ)
@@ -256,7 +288,7 @@ CONTAINS
         END DO
         statepp%multiplicity=state%multiplicity
 
-        CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_val=im)
+        CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_section=im)
         CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_section=im)
         CALL set_atom(atom_info(in,im)%atom,method_type=method)
         CALL set_atom(atom_refs(in,im)%atom,method_type=method,relativistic=reltyp)

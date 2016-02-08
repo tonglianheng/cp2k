@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -129,7 +129,7 @@ MODULE message_passing
   PUBLIC :: mp_probe
 
   ! message passing
-  PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
+  PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
   PUBLIC :: mp_isend, mp_irecv
   PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
@@ -153,7 +153,7 @@ MODULE message_passing
 
   ! some 'advanced types' currently only used for dbcsr
   PUBLIC :: mp_type_descriptor_type
-  PUBLIC :: mp_type_make
+  PUBLIC :: mp_type_make, mp_type_free
   PUBLIC :: mp_type_size
 
   ! some benchmarking code
@@ -162,6 +162,11 @@ MODULE message_passing
   ! one-sided communication
   PUBLIC :: mp_win_create, mp_win_free, mp_win_lock_all,&
             mp_win_unlock_all, mp_rget
+
+  ! vector types
+  PUBLIC :: mp_type_indexed_make_i, mp_type_indexed_make_l, &
+            mp_type_indexed_make_r, mp_type_indexed_make_d, &
+            mp_type_indexed_make_c, mp_type_indexed_make_z
 
 #ifndef __parallel
   INTEGER, PARAMETER :: MPI_COMM_SELF=0,MPI_COMM_WORLD=0, MPI_COMM_NULL=-1
@@ -181,6 +186,10 @@ MODULE message_passing
 
   INTERFACE mp_testany
      MODULE PROCEDURE mp_testany_1, mp_testany_2
+  END INTERFACE
+
+  INTERFACE mp_type_free
+     MODULE PROCEDURE mp_type_free_m, mp_type_free_v
   END INTERFACE
 
   !
@@ -235,6 +244,15 @@ MODULE message_passing
                       mp_sum_root_cv, mp_sum_root_cm,&
                       mp_sum_root_zv, mp_sum_root_zm
      MODULE PROCEDURE mp_sum_b
+  END INTERFACE
+
+  INTERFACE mp_sum_partial
+     MODULE PROCEDURE mp_sum_partial_im,&
+                      mp_sum_partial_lm,&
+                      mp_sum_partial_rm,&
+                      mp_sum_partial_dm,&
+                      mp_sum_partial_cm,&
+                      mp_sum_partial_zm 
   END INTERFACE
 
   INTERFACE mp_max
@@ -355,12 +373,12 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_sendrecv
-     MODULE PROCEDURE mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3,&
-                      mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3,&
-                      mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3,&
-                      mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3,&
-                      mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3,&
-                      mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3
+     MODULE PROCEDURE mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4,&
+                      mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4,&
+                      mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4,&
+                      mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4,&
+                      mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3, mp_sendrecv_cm4,&
+                      mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3, mp_sendrecv_zm4
   END INTERFACE
 
   INTERFACE mp_isendrecv
@@ -3067,31 +3085,51 @@ CONTAINS
 !> \brief ...
 !> \param type_descriptor ...
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE mp_type_free (type_descriptor)
+  RECURSIVE SUBROUTINE mp_type_free_m (type_descriptor)
     TYPE(mp_type_descriptor_type), &
       INTENT(inout)                          :: type_descriptor
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_free', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_free_m', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr
+    INTEGER                                  :: handle, i, ierr
 
+    CALL mp_timeset(routineN,handle)
     ierr = 0
 
     ! If the subtype is associated, then it's a user-defined data type.
 
     IF (ASSOCIATED (type_descriptor%subtype)) THEN
         DO i = 1, SIZE(type_descriptor%subtype)
-          CALL mp_type_free (type_descriptor%subtype(i))
+          CALL mp_type_free_m (type_descriptor%subtype(i))
        ENDDO
        DEALLOCATE (type_descriptor%subtype)
-#if defined(__parallel)
-       CALL MPI_Type_free (type_descriptor%type_handle, ierr)
-       IF (ierr /= 0)&
-          CPABORT("MPI_Type_free @ "//routineN)
-#endif
     ENDIF
-  END SUBROUTINE mp_type_free
+#if defined(__parallel)
+    CALL MPI_Type_free (type_descriptor%type_handle, ierr)
+    IF (ierr /= 0)&
+         CPABORT("MPI_Type_free @ "//routineN)
+#endif
+
+    CALL mp_timestop(handle)
+
+  END SUBROUTINE mp_type_free_m
+
+! *****************************************************************************
+!> \brief ...
+!> \param type_descriptors ...
+! *****************************************************************************
+  SUBROUTINE mp_type_free_v (type_descriptors)
+    TYPE(mp_type_descriptor_type), &
+      DIMENSION(:), INTENT(inout)            :: type_descriptors
+
+    INTEGER                                  :: i
+
+    DO i = 1, SIZE(type_descriptors)
+       CALL mp_type_free(type_descriptors(i))
+    ENDDO
+
+  END SUBROUTINE mp_type_free_v
 
 ! *****************************************************************************
 !> \brief Non-blocking send of custom type
@@ -3198,7 +3236,7 @@ CONTAINS
     CALL add_perf(perf_id=21,count=1,time=t_end-t_start)
 #else
     MARK_USED(win)
-    CPABORT("mp_win_free called in non parallel case")
+    win = mp_win_null
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_free
@@ -3232,7 +3270,6 @@ CONTAINS
     CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
 #else
     MARK_USED(win)
-    CPABORT("mp_win_lock_all called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_lock_all
@@ -3266,7 +3303,6 @@ CONTAINS
     CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
 #else
     MARK_USED(win)
-    CPABORT("mp_win_unlock_all called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_unlock_all

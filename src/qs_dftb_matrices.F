@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -312,7 +312,6 @@ CONTAINS
        CALL get_dftb_atom_param(dftb_kind_a,&
               defined=defined,lmax=lmaxi,skself=skself,&
               eta=eta_a,natorb=natorb_a)
-
        IF (.NOT.defined .OR. natorb_a < 1) CYCLE
        CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind_b)
        CALL get_dftb_atom_param(dftb_kind_b,&

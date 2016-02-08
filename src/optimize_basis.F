@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optimize_basis
   USE admm_methods,                    ONLY: admm_fit_mo_coeffs
@@ -282,7 +282,7 @@ CONTAINS
         CALL get_qs_env(qs_env, ks_env=ks_env)
         CALL update_basis_set(opt_bas,bas_id,qs_env)
         CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,force_env_section=qs_env%input)
-        CALL calculate_overlap(ks_env,"S_AB_AUX")
+        CALL calculate_overlap(ks_env,"S_AB_AUX",qs_env%input)
         CALL get_qs_env(qs_env,&
                         matrix_ks=matrix_ks,&
                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
@@ -349,7 +349,6 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: main_dir
     INTEGER                                  :: bas_id, handle, icalc, ierr, &
                                                 mp_id, set_id, stat
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -361,7 +360,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(matrix_s, blacs_env, ks_env)
 
     mp_id=opt_bas%opt_id
@@ -390,7 +388,7 @@ CONTAINS
 
        ! some weirdness with the default stacks defaults have to be addded to get the 
        ! correct default program name this causes trouble with the timer stack if kept
-       CALL f_env_add_defaults(f_env_id(icalc), f_env, failure)
+       CALL f_env_add_defaults(f_env_id(icalc), f_env)
        force_env => f_env%force_env
        CALL force_env_get(force_env,qs_env=qs_env)
        CALL allocate_mo_sets(qs_env)
@@ -398,7 +396,7 @@ CONTAINS
        CALL get_qs_env(qs_env, ks_env=ks_env)
        CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,&
                                     force_env_section=qs_env%input)
-       CALL calculate_overlap(ks_env,"S_AB")
+       CALL calculate_overlap(ks_env,"S_AB",qs_env%input)
        CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
        CALL calculate_overlap_inverse(matrix_s(1)%matrix,matrix_s_inv(icalc)%matrix,&
                                       para_env,blacs_env)

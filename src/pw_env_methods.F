@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -88,7 +88,7 @@ MODULE pw_env_methods
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_input_type, realspace_grid_p_type, realspace_grid_type, &
        rs_grid_create, rs_grid_create_descriptor, rs_grid_print, &
-       rs_grid_release, rs_grid_release_descriptor, rs_pw_transfer
+       rs_grid_release, rs_grid_release_descriptor
   USE xc_input_constants,              ONLY: &
        xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
        xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
@@ -721,7 +721,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_max_radius', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
+    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.015_dp
 
     CHARACTER(LEN=default_string_length)     :: basis_type
     INTEGER :: handle, ibasis_set_type, igrid_level, igrid_zet0_s, ikind, &

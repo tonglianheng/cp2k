@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,6 +9,7 @@
 !> \author Mandes
 ! *****************************************************************************
 MODULE input_cp2k_tmc
+  USE bibliography,                    ONLY: Schonherr2014
   USE input_cp2k_mm,                   ONLY: create_CHARGE_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -53,6 +54,7 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC",&
          description="A parallelized MC algorithm, presampling the configurations, espacially the Markov chain elements",&
+         citations=(/Schonherr2014/),&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
     NULLIFY(keyword, subsection)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -76,6 +76,7 @@ MODULE qs_initial_guess
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_restrict
+  USE qs_mom_methods,                  ONLY: do_mom_guess
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
@@ -380,6 +381,14 @@ CONTAINS
 
        END IF
 
+       ! Maximum Overlap Method
+       IF (scf_control%diagonalization%mom) THEN
+          ! activate MOM immediately as we already have old molecular orbitals;
+          ! this behaviour can be modified via your input file
+          CALL do_mom_guess(nspins=nspin, mos=mo_array, &
+               scf_control=scf_control, p_rmpv=p_rmpv, scf_iter=1)
+       ENDIF
+
        did_guess = .TRUE.
     END IF
 
@@ -594,6 +603,13 @@ CONTAINS
 !         END DO
 !         CALL cp_fm_release(sv)
        END IF
+
+       IF (scf_control%diagonalization%mom) THEN
+          ! by default activate MOM since the second SCF iteration, as 'old'
+          ! molecular orbitals will be available after the first iteration
+          CALL do_mom_guess(nspins=nspin, mos=mo_array, &
+               scf_control=scf_control, p_rmpv=p_rmpv, scf_iter=2)
+       ENDIF
 
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
                                          "PRINT%KINDS")
@@ -1053,15 +1069,12 @@ CONTAINS
 
     INTEGER                                  :: handle, icol, ikind, irow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: block
     TYPE(atom_matrix_type), ALLOCATABLE, &
       DIMENSION(:)                           :: fmat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(qs_kind_type), POINTER              :: qs_kind
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

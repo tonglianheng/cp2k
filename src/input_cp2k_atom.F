@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,12 +15,12 @@ MODULE input_cp2k_atom
                                              silent_print_level
   USE input_constants,                 ONLY: &
        atom_basis_run, atom_energy_run, atom_no_run, atom_pseudo_run, &
-       contracted_gto, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, &
-       do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, do_gapw_gcs, do_gapw_gct, &
-       do_gapw_log, do_nonrel_atom, do_numeric, do_rhf_atom, do_rks_atom, &
-       do_rohf_atom, do_sczoramp_atom, do_semi_analytic, do_uhf_atom, &
-       do_uks_atom, do_zoramp_atom, gaussian, geometrical_gto, gth_pseudo, &
-       no_pseudo, numerical, slater
+       barrier_conf, contracted_gto, do_analytic, do_dkh0_atom, do_dkh1_atom, &
+       do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, do_gapw_gcs, &
+       do_gapw_gct, do_gapw_log, do_nonrel_atom, do_numeric, do_rhf_atom, &
+       do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_semi_analytic, &
+       do_uhf_atom, do_uks_atom, do_zoramp_atom, gaussian, geometrical_gto, &
+       gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, slater
   USE input_cp2k_xc,                   ONLY: create_xc_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -793,10 +793,25 @@ CONTAINS
          description="Section of information on potential.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
+    CALL keyword_create(keyword, name="CONFINEMENT_TYPE",&
+         description="Define functional form of confinement potential.",&
+         usage="CONFINEMENT_TYPE (NONE|POLYNOM|BARRIER)",&
+         default_i_val=poly_conf,&
+         enum_c_vals=(/"NONE                     ",&
+                       "POLYNOM                  ",&
+                       "BARRIER                  "/),&
+         enum_i_vals= (/ no_conf, poly_conf, barrier_conf /),&
+         enum_desc=s2a("Do not use confinement potential",&
+                       "Use polynomial confinement potential: a*R^b",&
+                       "Use a smooth barrier potential: a*F[r-ron)/w]"))
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="CONFINEMENT",&
-         description="Definition of confinement potential",&
-         usage="CONFINEMENT prefactor range exponent", &
-         default_r_vals=(/ 0._dp, 4._dp, 2._dp /),&
+         description="Definition of parameters for confinement potential",&
+         usage="CONFINEMENT prefactor range exponent (POLYNOM)"//&
+               "CONFINEMENT prefactor range r_onset (BARRIER)", &
+         default_r_vals=(/ 0._dp, 0._dp, 0._dp /),&
          repeats=.FALSE., n_var=-1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
@@ -924,7 +939,7 @@ CONTAINS
     CALL keyword_create(keyword, name="WEIGHT_POT_VIRTUAL",&
          description="Weight for virtual states in pseudopotential optimization",&
          usage="WEIGHT_POT_VIRTUAL 1.0",&
-         default_r_val=0.01_dp)
+         default_r_val=1._dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -938,14 +953,21 @@ CONTAINS
     CALL keyword_create(keyword, name="WEIGHT_POT_VALENCE",&
          description="Weight for valence states in pseudopotential optimization",&
          usage="WEIGHT_POT_VALENCE 1.0",&
-         default_r_val=100.0_dp)
+         default_r_val=1.0_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="WEIGHT_POT_NODE",&
          description="Weight for node mismatch in pseudopotential optimization",&
          usage="WEIGHT_POT_NODE 1.0",&
-         default_r_val=1000.0_dp)
+         default_r_val=1.0_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="WEIGHT_DELTA_ENERGY",&
+         description="Weight for energy differences in pseudopotential optimization",&
+         usage="WEIGHT_DELTA_ENERGY 1.0",&
+         default_r_val=1._dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -966,21 +988,28 @@ CONTAINS
     CALL keyword_create(keyword, name="TARGET_POT_VIRTUAL",&
          description="Target accuracy for virtual state eigenvalues in pseudopotential optimization",&
          usage="TARGET_POT_VIRTUAL 0.0001",&
-         default_r_val=0.001_dp)
+         default_r_val=1.0e-3_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="TARGET_POT_VALENCE",&
          description="Target accuracy for valence state eigenvalues in pseudopotential optimization",&
          usage="TARGET_POT_VALENCE 0.0001",&
-         default_r_val=0.00001_dp)
+         default_r_val=1.0e-5_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="TARGET_POT_SEMICORE",&
          description="Target accuracy for semicore state eigenvalues in pseudopotential optimization",&
          usage="TARGET_POT_SEMICORE 0.01",&
-         default_r_val=0.001_dp)
+         default_r_val=1.0e-3_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="TARGET_DELTA_ENERGY",&
+         description="Target accuracy for energy differences in pseudopotential optimization",&
+         usage="TARGET_DELTA_ENERGY 0.01",&
+         default_r_val=1.0e-4_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

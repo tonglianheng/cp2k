@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -116,7 +116,8 @@ CONTAINS
 
 #endif
 
-    CPASSERT(info==0)
+    IF(info/=0) &
+      CPABORT("Cholesky decomposition failed. Matrix ill conditioned ?")
 
     CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 

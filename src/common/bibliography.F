@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -74,7 +74,10 @@ MODULE bibliography
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
        QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
        Luber2014, Berghold2011, DelBen2015b, Campana2009,              &
-       Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, Ceriotti2010
+       Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012,             &
+       Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978,       &
+       Gilbert2008, Schonherr2014, Ceriotti2014
+
 
 CONTAINS
 
@@ -237,8 +240,8 @@ CONTAINS
          "AU ZHAO, QS",&
          "   MORRISON, RC",&
          "   PARR, RG",&
-         "TI FOR ELECTRON DENSITIES TO KOHN-SHAM KINETIC ENERGIES, ORBITAL ENERGIES.",&
-         "   EXCHANGE-CORRELATION POTENTIALS, AND EXCHANGE-CORRELATION ENERGIES",&
+         "TI From electron densities to Kohn-Sham kinetic energies, orbital energies,",&
+         "   exchange-correlation potentials, and exchange-correlation energies",&
          "SO PHYSICAL REVIEW A",&
          "SN 1050-2947",&
          "PD SEP 1",&
@@ -2378,6 +2381,31 @@ CONTAINS
          "ER"),&
          DOI="10.1103/PhysRevB.87.041108")
 
+    CALL add_reference(key=Walewski2014, ISI_record=s2a(&
+         "PT J",&
+         "AU Walewski, L",&
+         "   Forbert, H",&
+         "   Marx, D",&
+         "AF Walewski, Lukasz",&
+         "   Forbert, Harald",&
+         "   Marx, Dominik",&
+         "TI Reactive path integral quantum simulations of molecules solvated in",&
+         "   superfluid helium",&
+         "SO COMPUTER PHYSICS COMMUNICATIONS",&
+         "DE Cryochemistry; Superfluidity; Helium; Solvation; Path integrals",&
+         "NR 153",&
+         "SN 0010-4655",&
+         "PD MAR",&
+         "PY 2014",&
+         "VL 185",&
+         "IS 3",&
+         "BP 884",&
+         "EP 899",&
+         "DI 10.1016/j.cpc.2013.12.011",&
+         "UT WOS:000331919100022",&
+         "ER"),&
+         DOI="10.1016/j.cpc.2013.12.011")
+
     CALL add_reference(key=Delben2013, ISI_record=s2a(&
          "PT J",&
          "AU Del Ben, M",&
@@ -3180,6 +3208,116 @@ CONTAINS
           "DI 10.1021/ja00051a040",&
           "ER"),&
           DOI="10.1021/ja00051a040")
+
+     CALL add_reference(key=Monkhorst1976, ISI_record=s2a(&
+          "PT J",&
+          "AU Monkhorst, HJ",&
+          "   Pack, JD",&
+          "AF Monkhorst, HJ",&
+          "   Pack, JD",&
+          "TI Special points for Brillouin-zone integrations",&
+          "SO PHYSICAL REVIEW B",&
+          "SN 0163-1829",&
+          "PY 1976",&
+          "VL 13",&
+          "IS 12",&
+          "BP 5188",&
+          "EP 5192",&
+          "DI 10.1103/PhysRevB.13.5188",&
+          "ER"),&
+          DOI="10.1103/PhysRevB.13.5188")
+
+     CALL add_reference(key=MacDonald1978, ISI_record=s2a(&
+          "PT J",&
+          "AU MacDonald, AH",&
+          "AF MacDonald, AH",&
+          "TI Comment on special points for Brillouin-zone integrations",&
+          "SO PHYSICAL REVIEW B",&
+          "SN 0163-1829",&
+          "J9 PHYS REV B",&
+          "JI Phys. Rev. B",&
+          "PY 1978",&
+          "VL 18",&
+          "IS 10",&
+          "BP 5897",&
+          "EP 5899",&
+          "DI 10.1103/PhysRevB.18.5897",&
+          "ER"),&
+          DOI="10.1103/PhysRevB.18.5897")
+
+     CALL add_reference(key=Gilbert2008, ISI_record=s2a(&
+          "PT J",&
+          "AU Gilbert, ATB",&
+          "   Besley, NA",&
+          "   Gill, PMW",&
+          "AF Gilbert, Andrew T. B.",&
+          "   Besley, Nicholas A.",&
+          "   Gill, Peter M. W.",&
+          "TI Self-consistent field calculations of excited states",&
+          "   using the maximum overlap method (MOM)",&
+          "SO THE JOURNAL OF PHYSICAL CHEMISTRY A",&
+          "PD AUG 26",&
+          "PY 2008",&
+          "VL 112",&
+          "BP 13164",&
+          "EP 13171",&
+          "DI 10.1021/jp801738f",&
+          "ER"),&
+          DOI="10.1021/jp801738f")
+
+     CALL add_reference(key=Schonherr2014, ISI_record=s2a(&
+          "PT J",&
+          "AU Schonherr, M",&
+          "   Slater, B",&
+          "   Hutter, J",&
+          "   VandeVondele, J",&
+          "AF Schoenherr, Mandes",&
+          "   Slater, Ben",&
+          "   Hutter, Juerg",&
+          "   VandeVondele, Joost",&
+          "TI Dielectric Properties of Water Ice, the Ice Ih/XI Phase Transition, and",&
+          "   an Assessment of Density Functional Theory",&
+          "SO JOURNAL OF PHYSICAL CHEMISTRY B",&
+          "RI Hutter, Juerg/E-9244-2011; VandeVondele, Joost/L-6420-2013",&
+          "OI VandeVondele, Joost/0000-0002-0902-5111",&
+          "SN 1520-6106",&
+          "PD JAN 16",&
+          "PY 2014",&
+          "VL 118",&
+          "IS 2",&
+          "BP 590",&
+          "EP 596",&
+          "DI 10.1021/jp4103355",&
+          "UT WOS:000330017900021",&
+          "PM 24392971",&
+          "ER"),&
+          DOI="10.1021/jp4103355")
+
+     CALL add_reference(key=Ceriotti2014, ISI_record=s2a(&
+          "PT J",&
+          "AU Ceriotti, M",&
+          "   More, J",&
+          "   Manolopoulos, DE",&
+          "AF Ceriotti, Michele",&
+          "   More, Joshua",&
+          "   Manolopoulos, David E.",&
+          "TI i-PI: A Python interface for ab initio path integral molecular dynamics",&
+          "   simulations",&
+          "SO COMPUTER PHYSICS COMMUNICATIONS",&
+          "RI Ceriotti, Michele/C-2393-2009",&
+          "OI Ceriotti, Michele/0000-0003-2571-2832",&
+          "SN 0010-4655",&
+          "EI 1879-2944",&
+          "PD MAR",&
+          "PY 2014",&
+          "VL 185",&
+          "IS 3",&
+          "BP 1019",&
+          "EP 1026",&
+          "DI 10.1016/j.cpc.2013.10.027",&
+          "UT WOS:000331919100033",&
+          "ER"),&
+          DOI="10.1016/j.cpc.2013.10.027")
 
   END SUBROUTINE add_all_references
 

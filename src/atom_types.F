@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,10 +20,13 @@ MODULE atom_types
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE input_constants,                 ONLY: contracted_gto,&
+  USE input_constants,                 ONLY: barrier_conf,&
+                                             contracted_gto,&
                                              gaussian,&
                                              geometrical_gto,&
+                                             no_conf,&
                                              numerical,&
+                                             poly_conf,&
                                              slater
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -71,6 +74,7 @@ MODULE atom_types
     INTEGER,DIMENSION(:,:),POINTER                :: ns         !STO n-quantum numbers
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: bf         !num. bsf
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: dbf        !derivatives (num)
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: ddbf       !2nd derivatives (num)
     REAL(KIND=dp)                                 :: eps_eig
     TYPE(grid_atom_type),POINTER                  :: grid
     LOGICAL                                       :: geometrical
@@ -115,6 +119,7 @@ MODULE atom_types
   TYPE atom_potential_type
     INTEGER                                       :: ppot_type
     LOGICAL                                       :: confinement
+    INTEGER                                       :: conf_type
     REAL(dp)                                      :: acon
     REAL(dp)                                      :: rcon
     REAL(dp)                                      :: scon
@@ -331,7 +336,7 @@ CONTAINS
 !   btyp = AA : high accuracy all-electron basis
 !   btyp = AP : high accuracy pseudopotential basis
 
-    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
+    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf,basis%ddbf)
     ! get information on quadrature type and number of grid points
     ! allocate and initialize the atomic grid
     CALL allocate_grid_atom(basis%grid)
@@ -418,8 +423,10 @@ CONTAINS
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3))
          ALLOCATE (basis%dbf(nr,m,0:3))
+         ALLOCATE (basis%ddbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
+         basis%ddbf = 0._dp
          DO l=0,3
            DO i=1,basis%nbas(l)
              al  = basis%am(i,l)
@@ -428,6 +435,8 @@ CONTAINS
                ear = EXP(-al*basis%grid%rad(k)**2)
                basis%bf(k,i,l) = rk**l * ear
                basis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+               basis%ddbf(k,i,l) = ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                 2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear
              END DO
            END DO
          END DO
@@ -498,8 +507,10 @@ CONTAINS
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3))
          ALLOCATE (basis%dbf(nr,m,0:3))
+         ALLOCATE (basis%ddbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
+         basis%ddbf = 0._dp
          DO l=0,3
            DO i=1,basis%nbas(l)
              al  = basis%am(i,l)
@@ -508,6 +519,8 @@ CONTAINS
                ear = EXP(-al*basis%grid%rad(k)**2)
                basis%bf(k,i,l) = rk**l * ear
                basis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+               basis%ddbf(k,i,l) = ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                 2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear
              END DO
            END DO
          END DO
@@ -524,8 +537,10 @@ CONTAINS
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3))
          ALLOCATE (basis%dbf(nr,m,0:3))
+         ALLOCATE (basis%ddbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
+         basis%ddbf = 0._dp
          DO l=0,3
            DO i=1,basis%nprim(l)
              al  = basis%am(i,l)
@@ -536,6 +551,8 @@ CONTAINS
                  basis%bf(k,j,l) = basis%bf(k,j,l) + rk**l * ear*basis%cm(i,j,l)
                  basis%dbf(k,j,l) = basis%dbf(k,j,l) &
                    + ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear*basis%cm(i,j,l)
+                 basis%ddbf(k,j,l) = basis%ddbf(k,j,l) + ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                   2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear*basis%cm(i,j,l)
                END DO
              END DO
            END DO
@@ -618,8 +635,10 @@ CONTAINS
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3))
          ALLOCATE (basis%dbf(nr,m,0:3))
+         ALLOCATE (basis%ddbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
+         basis%ddbf = 0._dp
          DO l=0,3
            DO i=1,basis%nbas(l)
              al  = basis%as(i,l)
@@ -627,9 +646,11 @@ CONTAINS
              pf  = (2._dp*al)**nl * SQRT(2._dp*al/fac(2*nl))
              DO k=1,nr
                rk  = basis%grid%rad(k)
-               ear = EXP(-al*rk)
-               basis%bf(k,i,l) = pf * rk**(nl-1) * ear
-               basis%dbf(k,i,l) = pf * ( REAL(nl-1,dp)/rk - al ) * rk**(nl-1) * ear
+               ear = rk**(nl-1) * EXP(-al*rk)
+               basis%bf(k,i,l) = pf * ear
+               basis%dbf(k,i,l) = pf * ( REAL(nl-1,dp)/rk - al ) * ear
+               basis%ddbf(k,i,l) = pf * ( REAL( (nl-2)*(nl-1),dp)/rk/rk &
+                 - al*REAL( 2*(nl-1),dp)/rk + al*al ) * ear
              END DO
            END DO
          END DO
@@ -667,6 +688,9 @@ CONTAINS
     END IF
     IF(ASSOCIATED(basis%dbf)) THEN
        DEALLOCATE (basis%dbf)
+    END IF
+    IF(ASSOCIATED(basis%ddbf)) THEN
+       DEALLOCATE (basis%ddbf)
     END IF
 
     CALL deallocate_grid_atom(basis%grid)
@@ -2013,6 +2037,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: pseudo_fn, pseudo_name
+    INTEGER                                  :: ic
     REAL(dp), DIMENSION(:), POINTER          :: convals
     TYPE(section_vals_type), POINTER         :: gth_potential_section
 
@@ -2037,26 +2062,54 @@ CONTAINS
 
     ! confinement
     NULLIFY(convals)
-    CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals)
-    IF ( SIZE (convals) >= 1 ) THEN
-      IF ( convals(1) > 0.0_dp ) THEN
-        potential%confinement = .TRUE.
-        potential%acon = convals(1)
-        IF ( SIZE (convals) >= 2 ) THEN
-          potential%rcon = convals(2)
-        ELSE
-          potential%rcon = 4.0_dp
-        END IF
-        IF ( SIZE (convals) >= 3 ) THEN
-          potential%scon = convals(3)
-        ELSE
-          potential%scon = 2.0_dp
-        END IF
-      ELSE
-        potential%confinement = .FALSE.
-      END IF
-    ELSE
-      potential%confinement = .FALSE.
+    CALL section_vals_val_get(potential_section,"CONFINEMENT_TYPE",i_val=ic)
+    potential%conf_type = ic
+    IF(potential%conf_type==no_conf) THEN
+       potential%acon = 0.0_dp
+       potential%rcon = 4.0_dp
+       potential%scon = 2.0_dp
+       potential%confinement = .FALSE.
+    ELSE IF(potential%conf_type==poly_conf) THEN
+       CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals)
+       IF ( SIZE (convals) >= 1 ) THEN
+         IF ( convals(1) > 0.0_dp ) THEN
+           potential%confinement = .TRUE.
+           potential%acon = convals(1)
+           IF ( SIZE (convals) >= 2 ) THEN
+             potential%rcon = convals(2)
+           ELSE
+             potential%rcon = 4.0_dp
+           END IF
+           IF ( SIZE (convals) >= 3 ) THEN
+             potential%scon = convals(3)
+           ELSE
+             potential%scon = 2.0_dp
+           END IF
+         ELSE
+           potential%confinement = .FALSE.
+         END IF
+       ELSE
+         potential%confinement = .FALSE.
+       END IF
+    ELSE IF(potential%conf_type==barrier_conf) THEN
+       potential%acon = 200.0_dp
+       potential%rcon = 4.0_dp
+       potential%scon = 8.0_dp
+       potential%confinement = .TRUE.
+       CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals)
+       IF ( SIZE (convals) >= 1 ) THEN
+         IF ( convals(1) > 0.0_dp ) THEN
+           potential%acon = convals(1)
+           IF ( SIZE (convals) >= 2 ) THEN
+             potential%rcon = convals(2)
+           END IF
+           IF ( SIZE (convals) >= 3 ) THEN
+             potential%scon = convals(3)
+           END IF
+         ELSE
+           potential%confinement = .FALSE.
+         END IF
+       END IF
     END IF
 
   END SUBROUTINE init_atom_potential

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -31,10 +31,11 @@ MODULE atom_kind_orbitals
                                              get_potential,&
                                              gth_potential_type
   USE input_constants,                 ONLY: &
-       do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
-       do_dkh4_atom, do_dkh5_atom, do_gapw_log, do_nonrel_atom, do_numeric, &
-       do_rks_atom, do_sczoramp_atom, do_zoramp_atom, gth_pseudo, no_pseudo, &
-       rel_dkh, rel_none, rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp
+       barrier_conf, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, &
+       do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, do_gapw_log, do_nonrel_atom, &
+       do_numeric, do_rks_atom, do_sczoramp_atom, do_zoramp_atom, gth_pseudo, &
+       no_pseudo, poly_conf, rel_dkh, rel_none, rel_sczora_mp, rel_zora, &
+       rel_zora_full, rel_zora_mp
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
@@ -116,11 +117,6 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
-!INTEGER, DIMENSION(0:3)                  :: econfx
-!INTEGER, DIMENSION(:), POINTER           :: econf
-!INTEGER, DIMENSION(:, :), POINTER        :: addel, laddel, naddel 
-!LOGICAL                                  :: bs_occupation
-
     NULLIFY(atom)
     CALL create_atom_type(atom)
 
@@ -136,10 +132,6 @@ CONTAINS
                      basis_set=orb_basis_set,&
                      all_potential=all_potential,&
                      gth_potential=gth_potential)
-
-    !!RZK CALL get_qs_kind(qs_kind,&
-    !!RZK                  bs_occupation=bs_occupation,&
-    !!RZK                  addel=addel,laddel=laddel,naddel=naddel)
 
     CPASSERT(ASSOCIATED(orb_basis_set))
 
@@ -163,6 +155,7 @@ CONTAINS
       ELSE
          potential%confinement=.TRUE.
       END IF
+      potential%conf_type = poly_conf
       potential%acon=0.1_dp
       potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
       potential%scon=2.0_dp
@@ -283,7 +276,7 @@ CONTAINS
     grid%nr = ngp
     basis%grid => grid
 
-    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
+    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf,basis%ddbf)
     basis%basis_type = CGTO_BASIS
     basis%eps_eig = 1.e-12_dp
 
@@ -340,9 +333,11 @@ CONTAINS
     m  = MAXVAL(basis%nbas)
     ALLOCATE (basis%bf(nr,m,0:3))
     ALLOCATE (basis%dbf(nr,m,0:3))
+    ALLOCATE (basis%ddbf(nr,m,0:3))
 
     basis%bf =  0._dp
     basis%dbf = 0._dp
+    basis%ddbf = 0._dp
     DO l=0,3
       DO i=1,basis%nprim(l)
         al  = basis%am(i,l)
@@ -353,6 +348,8 @@ CONTAINS
             basis%bf(k,j,l) = basis%bf(k,j,l) + rk**l * ear*basis%cm(i,j,l)
             basis%dbf(k,j,l) = basis%dbf(k,j,l) &
               + ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear*basis%cm(i,j,l)
+            basis%ddbf(k,j,l) = basis%ddbf(k,j,l) + ( REAL(l*(l-1),dp)*rk**(l-2) - &
+              2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear*basis%cm(i,j,l)
           END DO
         END DO
       END DO
@@ -457,10 +454,11 @@ CONTAINS
           ll = 2*l
           DO k1=1,atom%basis%nbas(l)
           DO k2=1,atom%basis%nbas(l)
+             scal=SQRT(atom%integrals%ovlp(k1,k1,l)*atom%integrals%ovlp(k2,k2,l))
              i=first_sgf(shell_index(l,k1),set_index(l,k1))
              j=first_sgf(shell_index(l,k2),set_index(l,k2))
              DO m=0,ll
-               fmat(i+m,j+m) = atom%fmat%op(k1,k2,l)
+               fmat(i+m,j+m) = atom%fmat%op(k1,k2,l)/scal
              END DO
           END DO
           END DO
@@ -478,8 +476,6 @@ CONTAINS
     DEALLOCATE (potential,basis,integrals)
 
   END SUBROUTINE calculate_atomic_orbitals
-
-! *****************************************************************************
 
 ! *****************************************************************************
 !> \brief ...
@@ -574,9 +570,10 @@ CONTAINS
       ELSE
          potential%confinement=.TRUE.
       END IF
-      potential%acon=0.1_dp
-      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
-      potential%scon=2.0_dp
+      potential%conf_type=barrier_conf
+      potential%acon=200._dp
+      potential%rcon=4.0_dp
+      potential%scon=8.0_dp
 
       CALL get_potential(gth_potential,&
                          zeff=zeff,&
@@ -676,9 +673,11 @@ CONTAINS
       ELSE
          potential%confinement=.FALSE.
       END IF
-      potential%acon=0.1_dp
-      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
-      potential%scon=2.0_dp
+      potential%conf_type=barrier_conf
+      potential%acon=200._dp
+      potential%rcon=4.0_dp
+      potential%scon=8.0_dp
+      CALL set_atom(atom,zcore=z,potential=potential)
       CALL set_atom(atom,zcore=z,potential=potential)
     END IF
 
@@ -691,7 +690,7 @@ CONTAINS
     grid%nr = ngp
     basis%grid => grid
 
-    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
+    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf,basis%ddbf)
 
     ! fill in the basis data structures
     basis%eps_eig = 1.e-12_dp
@@ -718,8 +717,10 @@ CONTAINS
     m  = MAXVAL(basis%nbas)
     ALLOCATE (basis%bf(nr,m,0:3))
     ALLOCATE (basis%dbf(nr,m,0:3))
+    ALLOCATE (basis%ddbf(nr,m,0:3))
     basis%bf =  0._dp
     basis%dbf = 0._dp
+    basis%ddbf = 0._dp
     DO l=0,3
       DO i=1,basis%nbas(l)
         al  = basis%am(i,l)
@@ -728,6 +729,8 @@ CONTAINS
           ear = EXP(-al*basis%grid%rad(k)**2)
           basis%bf(k,i,l) = rk**l * ear
           basis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+          basis%ddbf(k,i,l) = ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                 2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear
         END DO
       END DO
     END DO
@@ -894,8 +897,6 @@ CONTAINS
   END SUBROUTINE calculate_atomic_density
 
 ! *****************************************************************************
-
-! *****************************************************************************
 !> \brief ...
 !> \param atomic_kind ...
 !> \param qs_kind ...
@@ -1011,7 +1012,7 @@ CONTAINS
        grid%nr = ngp
        basis%grid => grid
 
-       NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
+       NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf,basis%ddbf)
        basis%basis_type = CGTO_BASIS
        basis%eps_eig = 1.e-12_dp
 
@@ -1079,9 +1080,11 @@ CONTAINS
        m  = MAXVAL(basis%nbas)
        ALLOCATE (basis%bf(nr,m,0:3))
        ALLOCATE (basis%dbf(nr,m,0:3))
+       ALLOCATE (basis%ddbf(nr,m,0:3))
 
        basis%bf =  0._dp
        basis%dbf = 0._dp
+       basis%ddbf = 0._dp
        DO l=0,3
          DO i=1,basis%nprim(l)
            al  = basis%am(i,l)
@@ -1092,6 +1095,8 @@ CONTAINS
                basis%bf(k,j,l) = basis%bf(k,j,l) + rk**l * ear*basis%cm(i,j,l)
                basis%dbf(k,j,l) = basis%dbf(k,j,l) &
                  + ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear*basis%cm(i,j,l)
+               basis%ddbf(k,j,l) = basis%ddbf(k,j,l) + ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                 2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear*basis%cm(i,j,l)
              END DO
            END DO
          END DO

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -40,6 +40,7 @@ MODULE dm_ls_scf_methods
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE mathlib,                         ONLY: abnormal_value
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -132,7 +133,7 @@ CONTAINS
                                        ls_scf_env%sign_sqrt_order, &
                                        ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
 
-        IF (.TRUE.) THEN
+        IF (ls_scf_env%check_s_inv) THEN
            CALL cp_dbcsr_init(matrix_tmp1)
            CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
                                 matrix_type=dbcsr_type_no_symmetry)
@@ -169,7 +170,7 @@ CONTAINS
            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s_sqrt_inv, &
                                         0.0_dp, ls_scf_env%matrix_s_inv, filter_eps=ls_scf_env%eps_filter)
         ENDIF
-        IF (.TRUE.) THEN
+        IF (ls_scf_env%check_s_inv) THEN
            CALL cp_dbcsr_init(matrix_tmp1)
            CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
                                 matrix_type=dbcsr_type_no_symmetry)
@@ -534,6 +535,7 @@ CONTAINS
 !> \param matrix_ks_deviation ...
 !> \param max_iter_lanczos ...
 !> \param eps_lanczos ...
+!> \param converged ...
 !> \par History
 !>       2012.06 created [Florian Thoele]
 !> \author Florian Thoele 
@@ -541,7 +543,7 @@ CONTAINS
   SUBROUTINE density_matrix_trs4(matrix_p, matrix_ks, matrix_s_sqrt_inv, &
                                  nelectron, threshold, e_homo, e_lumo, e_mu, &
                                  dynamic_threshold, matrix_ks_deviation,&
-                                 max_iter_lanczos, eps_lanczos)
+                                 max_iter_lanczos, eps_lanczos, converged)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_ks, matrix_s_sqrt_inv
@@ -553,6 +555,7 @@ CONTAINS
       OPTIONAL                               :: matrix_ks_deviation
     INTEGER, INTENT(IN)                      :: max_iter_lanczos
     REAL(KIND=dp), INTENT(IN)                :: eps_lanczos
+    LOGICAL, INTENT(OUT), OPTIONAL           :: converged
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_trs4', &
       routineP = moduleN//':'//routineN
@@ -563,7 +566,8 @@ CONTAINS
     INTEGER                                  :: branch, estimated_steps, &
                                                 handle, i, j, unit_nr
     INTEGER(kind=int_8)                      :: flop1, flop2
-    LOGICAL                                  :: converged, do_dyn_threshold
+    LOGICAL                                  :: arnoldi_converged, &
+                                                do_dyn_threshold
     REAL(KIND=dp) :: current_threshold, delta_n, eps_max, eps_min, &
       est_threshold, frob_id, frob_x, gam, homo, lumo, max_eig, &
       max_threshold, maxdev, maxev, min_eig, minev, mmin, mu, mu_a, mu_b, &
@@ -592,6 +596,8 @@ CONTAINS
     do_dyn_threshold = .FALSE.
     IF(PRESENT(dynamic_threshold)) do_dyn_threshold = dynamic_threshold
 
+    IF(PRESENT(converged)) converged = .FALSE.
+
     ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
     CALL cp_dbcsr_init(matrix_x)
     CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type="S")
@@ -615,10 +621,10 @@ CONTAINS
        CPASSERT(PRESENT(matrix_ks_deviation))
        CALL cp_dbcsr_add(matrix_ks_deviation, matrix_x_nosym , -1.0_dp, 1.0_dp)
        CALL cp_dbcsr_arnoldi_extremal(matrix_ks_deviation, maxev, minev, max_iter=max_iter_lanczos, threshold=eps_lanczos, &
-                               converged=converged)
+                               converged=arnoldi_converged)
        maxdev = MAX(ABS(maxev), ABS(minev))
        IF (unit_nr>0) THEN
-          WRITE(unit_nr, '(T6,A,1X,L12)')   "Lanczos converged:      ", converged
+          WRITE(unit_nr, '(T6,A,1X,L12)')   "Lanczos converged:      ", arnoldi_converged
           WRITE(unit_nr, '(T6,A,1X,F12.5)') "change in mixed matrix: ", maxdev
           WRITE(unit_nr, '(T6,A,1X,F12.5)') "HOMO upper bound:       ", e_homo+maxdev
           WRITE(unit_nr, '(T6,A,1X,F12.5)') "LUMO lower bound:       ", e_lumo-maxdev
@@ -631,15 +637,19 @@ CONTAINS
 
     ! get largest/smallest eigenvalues for scaling
     CALL cp_dbcsr_arnoldi_extremal(matrix_x_nosym, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
-                            converged=converged)
+                            converged=arnoldi_converged)
     IF (unit_nr>0) WRITE(unit_nr,'(T6,A,1X,2F12.5,1X,A,1X,L1)') "Est. extremal eigenvalues", &
-                                                         min_eig, max_eig," converged: ",converged
+                                                         min_eig, max_eig," converged: ",arnoldi_converged
     eps_max = max_eig
     eps_min = min_eig
-    
+
     ! scale KS matrix
-    CALL cp_dbcsr_add_on_diag(matrix_x, -eps_max)
-    CALL cp_dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min))
+    IF (eps_max == eps_min) THEN
+      CALL cp_dbcsr_scale(matrix_x,  1.0_dp/eps_max)
+    ELSE 
+      CALL cp_dbcsr_add_on_diag(matrix_x, -eps_max)
+      CALL cp_dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min))
+    ENDIF
 
     current_threshold = threshold
     IF (do_dyn_threshold) THEN
@@ -753,9 +763,15 @@ CONTAINS
          CALL m_flush(unit_nr)
       ENDIF
 
+      IF(abnormal_value(trace_gx)) &
+         CPABORT("trace_gx is an abnormal value (NaN/Inf).")
+
       ! a branch of 1 or 2 appears to lead to a less accurate electron number count and premature exit
       ! if it turns out this does not exit because we get stuck in branch 1/2 for a reason we need to refine further
-      IF (ABS(frob_id/frob_x) < SQRT(threshold) .AND. branch==3  .AND. (ABS(delta_n) < 0.5_dp) ) EXIT
+      IF (ABS(frob_id/frob_x) < SQRT(threshold) .AND. branch==3  .AND. (ABS(delta_n) < 0.5_dp) ) THEN
+         IF(PRESENT(converged)) converged = .TRUE.
+         EXIT
+      ENDIF
 
     END DO
 
