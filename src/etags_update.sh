@@ -35,7 +35,7 @@ fi
 
 # Linux find and Mac OS X find has different options, so need to call
 # them differently
-if (man find | grep "\-E" >& /dev/null) ; then
+if (find -H 2>&1 | grep "\-E" >& /dev/null) ; then
     find -E . -regex $INCLUDE_REGEXP -and \
          -not -regex $IGNORE_REGEXP \
          -print | xargs $etags_command
