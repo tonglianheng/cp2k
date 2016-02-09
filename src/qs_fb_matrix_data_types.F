@@ -125,8 +125,8 @@ CONTAINS
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found)
     IF (found) THEN
-       
-       CP_ASSERT(nrows*ncols .LE. )
+       CALL fb_buffer_replace(matrix_data%obj%blks, existing_ii, data)
+
        ! matrix block aready stored, need to to reassign
        IF (ASSOCIATED(matrix_data%obj%blks(existing_ii)%p)) THEN
           DEALLOCATE(matrix_data%obj%blks(existing_ii)%p)

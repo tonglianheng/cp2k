@@ -748,9 +748,8 @@ CONTAINS
                      "replacement data must be equal size to the " //&
                      "original slice")
     END IF
-    
-    
-
+    buffer%obj%data(buffer%obj%disps(i_slice) : &
+                    buffer%obj%disps(i_slice+1)) = data
   END SUBROUTINE fb_buffer_d_replace
 
 
