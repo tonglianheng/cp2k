@@ -732,6 +732,14 @@ CONTAINS
   END SUBROUTINE fb_buffer_d_get
 
 
+! *****************************************************************************
+!> \brief replace a slice of the buffer, the replace data size must be
+!>        identical to the original slice size
+!> \param buffer  : fb_buffer object
+!> \param i_slice : the slice index in the buffer
+!> \param data    : the data to replace the slice
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_buffer_d_replace(buffer, i_slice, data)
     TYPE(fb_buffer_d_obj), INTENT(INOUT) :: buffer
     INTEGER, INTENT(IN) :: i_slice
