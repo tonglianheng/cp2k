@@ -15,10 +15,13 @@ MODULE qs_fb_matrix_data_types
                                              fb_hash_table_obj,&
                                              fb_hash_table_release
   USE qs_fb_buffer_types, ONLY: fb_buffer_d_obj, &
-                                fb_buffer_add, &
                                 fb_buffer_create, &
+                                fb_buffer_add, &
+                                fb_buffer_get, &
+                                fb_buffer_has_data, &
                                 fb_buffer_retain, &
-                                fb_buffer_release
+                                fb_buffer_release, &
+                                fb_buffer_replace
 
 #include "./base/base_uses.f90"
 
@@ -44,15 +47,6 @@ MODULE qs_fb_matrix_data_types
   INTEGER, PARAMETER, PRIVATE :: EXPAND_FACTOR = 2
 
 ! *****************************************************************************
-!> \brief data type for one matrix block
-!> \param data : pointer to matrix block
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  TYPE fb_matrix_block
-     REAL(KIND=dp), DIMENSION(:,:), POINTER :: p => NULL()
-  END TYPE fb_matrix_block
-
-! *****************************************************************************
 !> \brief data type for storing a list of matrix blocks
 !> \param nmax      : maximum number of blocks can be stored
 !> \param nblks     : number of blocks currently stored
@@ -72,9 +66,8 @@ MODULE qs_fb_matrix_data_types
      INTEGER :: nblks
      INTEGER :: nencode
      TYPE(fb_hash_table_obj) :: ind
-!     TYPE(fb_matrix_block), DIMENSION(:), POINTER :: blks => NULL()
      TYPE(fb_buffer_d_obj) :: blks
-     INTEGER, DIMENSION(:,:), POINTER :: lds
+     INTEGER, DIMENSION(:,:), POINTER :: lds => NULL()
   END TYPE fb_matrix_data_data
 
 ! *****************************************************************************
@@ -107,7 +100,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: existing_ii, ii, &
-                                                nrows, old_nblks
+                                                nrows, ncols, old_nblks
     INTEGER(KIND=int_8)                      :: pair_ind
     INTEGER, DIMENSION(:), POINTER           :: new_lds
     LOGICAL                                  :: check_ok, found
@@ -116,6 +109,7 @@ CONTAINS
     CPASSERT(check_ok)
     NULLIFY(new_lds)
     nrows = SIZE(blk, 1)
+    ncols = SIZE(blk, 2)
     ! first check if the block already exists in matrix_data
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found)
@@ -135,8 +129,7 @@ CONTAINS
        END IF
        ! add data block
        matrix_data%obj%lds(ii) = nrows
-!TODO:LT:2016/02/10 need to reshape blk becore add to buffer
-       CALL fb_buffer_add(matrix_data%obj%blks, blk)
+       CALL fb_buffer_add(matrix_data%obj%blks, RESHAPE(blk, (/nrows*ncols/)))
        ! record blk index in the index table
        CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii)
     END IF
@@ -177,6 +170,7 @@ CONTAINS
     ALLOCATE(matrix_data%obj)
     CALL fb_hash_table_nullify(matrix_data%obj%ind)
     CALL fb_buffer_nullify(matrix_data%obj%blks)
+    NULLIFY(matrix_data%obj%lds)
     matrix_data%obj%nmax = 0
     matrix_data%obj%nblks = 0
     matrix_data%obj%nencode = nencode
@@ -208,7 +202,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_get', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ind_in_blks
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: blk_1d
+    INTEGER                                  :: ind_in_blks, nrows
     INTEGER(KIND=int_8)                      :: pair_ind
     LOGICAL                                  :: check_ok
 
@@ -218,8 +213,17 @@ CONTAINS
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, ind_in_blks, found)
     IF (found) THEN
        CALL fb_buffer_get(buffer=matrix_data%obj%blks, &
-                          i_slice=ind_in_blk, &
-                          data=blk_p)
+                          i_slice=ind_in_blks, &
+                          data=blk_1d)
+       ! cannot, or rather, it is inefficient to use reshape here, as
+       ! a) reshape does not return a targeted array, so cannot
+       ! associate pointer unless copied to a targeted array. b) in
+       ! F2003 standard, pointers should rank remap automatically by
+       ! association, as blk_1d has rank 1
+       nrows = matrix_data%obj%lds(ind_in_blks)
+       ncols = SIZE(blk_1d) / nrows
+       CPASSERT(SIZE(blk_1d) == nrows*ncols)
+       blk_p(1:nrows,1:ncols) => blk_1d(:)
     ELSE
        NULLIFY(blk_p)
     END IF
@@ -271,6 +275,10 @@ CONTAINS
        CALL fb_buffer_release(matrix_data%obj%blks)
     END IF
     CALL fb_buffer_create(buffer=matrix_data%obj%blks)
+    IF (ASSOCIATED(matrix_data%obj%lds)) THEN
+       DEALLOCATE(matrix_data%obj%lds)
+    END IF
+    ALLOCATE(matrix_data%obj%lds(0))
     matrix_data%obj%nblks = 0
     IF (PRESENT(nencode)) matrix_data%obj%nencode = nencode
   END SUBROUTINE fb_matrix_data_init
@@ -309,8 +317,11 @@ CONTAINS
           IF (fb_hash_table_has_data(matrix_data%obj%ind)) THEN
              CALL fb_hash_table_release(matrix_data%obj%ind)
           END IF
-          IF (fb_buffer_has_data(matrix_Data%obj%blks)) THEN
-             CALL fb_buffer_release(matrix_Data%obj%blks)
+          IF (fb_buffer_has_data(matrix_data%obj%blks)) THEN
+             CALL fb_buffer_release(matrix_data%obj%blks)
+          END IF
+          IF (ASSOCIATED(matrix_data%obj%lds)) THEN
+             DEALLOCATE(matrix_data%obj%lds)
           END IF
           matrix_data%obj%ref_count = 0
           DEALLOCATE(matrix_data%obj)
@@ -340,13 +351,6 @@ CONTAINS
     matrix_data%obj%ref_count = matrix_data%obj%ref_count + 1
   END SUBROUTINE fb_matrix_data_retain
 
-
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
 ! *****************************************************************************
 !> \brief outputs the current information about fb_matrix_data object
 !> \param matrix_data : the fb_matrix_data object
@@ -367,6 +371,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: buffer_sizes
     LOGICAL                                  :: check_ok
 
     check_ok = fb_matrix_data_has_data(matrix_data)
@@ -379,13 +384,16 @@ CONTAINS
                    SIZE(blk_sizes, 2) .GE. 2)
        CPASSERT(check_ok)
        blk_sizes(:,:) = 0
+       ALLOCATE(buffer_sizes(matrix_data%obj%nblks))
+       CALL fb_buffer_get(buffer=matrix_data%obj%blks, &
+                          sizes=buffer_sizes)
        DO ii = 1, matrix_data%obj%nblks
-          blk_sizes(ii,1) = SIZE(matrix_data%obj%blks(ii)%p, 1)
-          blk_sizes(ii,2) = SIZE(matrix_data%obj%blks(ii)%p, 2)
+          blk_sizes(ii,1) = matrix_data%obj%lds(ii)
+          blk_sizes(ii,2) = buffer_sizes(ii) / matrix_data%obj%lds(ii)
        END DO
+       DEALLOCATE(buffer_sizes)
     END IF
   END SUBROUTINE fb_matrix_data_status
-
 
 ! *****************************************************************************
 !> \brief Encodes (row, col) index pair into a single combined index
