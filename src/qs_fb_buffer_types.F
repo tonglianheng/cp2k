@@ -27,7 +27,9 @@ MODULE qs_fb_buffer_types
             fb_buffer_has_data, &
             fb_buffer_release, &
             fb_buffer_retain, &
-            fb_buffer_nullify
+            fb_buffer_nullify, &
+            fb_buffer_replace
+
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_buffer_types'
   INTEGER, PRIVATE, SAVE :: last_fb_buffer_i_id = 0
@@ -139,6 +141,11 @@ MODULE qs_fb_buffer_types
      MODULE PROCEDURE fb_buffer_i_nullify
      MODULE PROCEDURE fb_buffer_d_nullify
   END INTERFACE fb_buffer_nullify
+
+  INTERFACE fb_buffer_replace
+     MODULE PROCEDURE fb_buffer_i_replace
+     MODULE PROCEDURE fb_buffer_d_replace
+  END INTERFACE fb_buffer_replace
 
 CONTAINS
 
@@ -434,6 +441,30 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE fb_buffer_i_get
+
+! *****************************************************************************
+!> \brief replace a slice of the buffer, the replace data size must be
+!>        identical to the original slice size
+!> \param buffer  : fb_buffer object
+!> \param i_slice : the slice index in the buffer
+!> \param data    : the data to replace the slice
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  SUBROUTINE fb_buffer_i_replace(buffer, i_slice, data)
+    TYPE(fb_buffer_i_obj), INTENT(INOUT) :: buffer
+    INTEGER, INTENT(IN) :: i_slice
+    INTEGER, DIMENSION(:), INTENT(IN) :: data
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_buffer_i_replace', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: slice_size
+
+    slice_size = buffer%obj%disps(i_slice+1) - buffer%obj%disps(i_slice)
+    CPASSERT(SIZE(data) == slice_size)
+    buffer%obj%data(buffer%obj%disps(i_slice) + 1 : &
+                    buffer%obj%disps(i_slice+1)) = data
+  END SUBROUTINE fb_buffer_i_replace
 
 
 ! DOUBLE PRECISION VERSION
@@ -751,12 +782,8 @@ CONTAINS
     INTEGER :: slice_size
 
     slice_size = buffer%obj%disps(i_slice+1) - buffer%obj%disps(i_slice)
-    IF (SIZE(data) .NE. slice_size) THEN
-       CALL cp_abort(__LOCATION__, &
-                     "replacement data must be equal size to the " //&
-                     "original slice")
-    END IF
-    buffer%obj%data(buffer%obj%disps(i_slice) : &
+    CPASSERT(SIZE(data) == slice_size)
+    buffer%obj%data(buffer%obj%disps(i_slice) + 1 : &
                     buffer%obj%disps(i_slice+1)) = data
   END SUBROUTINE fb_buffer_d_replace
 

@@ -112,32 +112,18 @@ CONTAINS
 
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
-    ! check if we need to resize the blks array
-    IF (matrix_data%obj%nblks*ENLARGE_RATIO .GE. &
-        matrix_data%obj%nmax) THEN
-       CALL fb_matrix_data_resize(matrix_data, &
-                                  matrix_data%obj%nmax*EXPAND_FACTOR)
-    END IF
-    ! assign block, copy blk data instead of associate
     nrows = SIZE(blk, 1)
     ncols = SIZE(blk, 2)
     ! first check if the block already exists in matrix_data
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found)
     IF (found) THEN
-       CALL fb_buffer_replace(matrix_data%obj%blks, existing_ii, data)
-
-       ! matrix block aready stored, need to to reassign
-       IF (ASSOCIATED(matrix_data%obj%blks(existing_ii)%p)) THEN
-          DEALLOCATE(matrix_data%obj%blks(existing_ii)%p)
-       END IF
-       ALLOCATE(matrix_data%obj%blks(existing_ii)%p(nrows,ncols))
-       matrix_data%obj%blks(existing_ii)%p(:,:) = blk(:,:)
+       CALL fb_buffer_replace(matrix_data%obj%blks, existing_ii, blk)
     ELSE
        matrix_data%obj%nblks = matrix_data%obj%nblks + 1
        ii = matrix_data%obj%nblks
-       ALLOCATE(matrix_data%obj%blks(ii)%p(nrows,ncols))
-       matrix_data%obj%blks(ii)%p(:,:) = blk(:,:)
+       ! add data block
+       CALL fb_buffer_add(matrix_data%obj%blks, blk)
        ! record blk index in the index table
        CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii)
     END IF
@@ -177,7 +163,7 @@ CONTAINS
     CPASSERT(check_ok)
     ALLOCATE(matrix_data%obj)
     CALL fb_hash_table_nullify(matrix_data%obj%ind)
-    NULLIFY(matrix_data%obj%blks)
+    CALL fb_buffer_nullify(matrix_data%obj%blks)
     matrix_data%obj%nmax = 0
     matrix_data%obj%nblks = 0
     matrix_data%obj%nencode = nencode
@@ -209,16 +195,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_get', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ind_in_blk
+    INTEGER                                  :: ind_in_blks
     INTEGER(KIND=int_8)                      :: pair_ind
     LOGICAL                                  :: check_ok
 
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
-    CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, ind_in_blk, found)
+    CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, ind_in_blks, found)
     IF (found) THEN
-       blk_p => matrix_data%obj%blks(ind_in_blk)%p
+       CALL fb_buffer_get(buffer=matrix_data%obj%blks, &
+                          i_slice=ind_in_blk, &
+                          data=blk_p)
     ELSE
        NULLIFY(blk_p)
     END IF
@@ -266,20 +254,10 @@ CONTAINS
        CALL fb_hash_table_release(matrix_data%obj%ind)
     END IF
     CALL fb_hash_table_create(matrix_data%obj%ind, my_nmax)
-    IF (ASSOCIATED(matrix_data%obj%blks)) THEN
-       DO ii = 1, SIZE(matrix_data%obj%blks)
-          IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
-             DEALLOCATE(matrix_data%obj%blks(ii)%p)
-          END IF
-       END DO
-       DEALLOCATE(matrix_data%obj%blks)
+    IF (fb_buffer_has_data(matrix_data%obj%blks)) THEN
+       CALL fb_buffer_release(matrix_data%obj%blks)
     END IF
-    ALLOCATE(matrix_data%obj%blks(my_nmax))
-    matrix_data%obj%nmax = my_nmax
-    ! nullify matrix blocks
-    DO ii = 1, SIZE(matrix_data%obj%blks)
-       NULLIFY(matrix_data%obj%blks(ii)%p)
-    END DO
+    CALL fb_buffer_create(buffer=matrix_data%obj%blks)
     matrix_data%obj%nblks = 0
     IF (PRESENT(nencode)) matrix_data%obj%nencode = nencode
   END SUBROUTINE fb_matrix_data_init
@@ -318,13 +296,8 @@ CONTAINS
           IF (fb_hash_table_has_data(matrix_data%obj%ind)) THEN
              CALL fb_hash_table_release(matrix_data%obj%ind)
           END IF
-          IF (ASSOCIATED(matrix_data%obj%blks)) THEN
-             DO ii = 1, SIZE(matrix_data%obj%blks)
-                IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
-                   DEALLOCATE(matrix_data%obj%blks(ii)%p)
-                END IF
-             END DO
-             DEALLOCATE(matrix_data%obj%blks)
+          IF (fb_buffer_has_data(matrix_Data%obj%blks)) THEN
+             CALL fb_buffer_release(matrix_Data%obj%blks)
           END IF
           matrix_data%obj%ref_count = 0
           DEALLOCATE(matrix_data%obj)
@@ -354,55 +327,12 @@ CONTAINS
     matrix_data%obj%ref_count = matrix_data%obj%ref_count + 1
   END SUBROUTINE fb_matrix_data_retain
 
-! *****************************************************************************
-!> \brief Resize a fb_matrix_data object
-!> \param matrix_data : the fb_matrix_data object
-!> \param nmax        : new maximun size of matrix_data%obj%blks
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_matrix_data_resize(matrix_data, nmax)
-    TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
-    INTEGER, INTENT(IN)                      :: nmax
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_resize', &
-      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, my_nmax
-    LOGICAL                                  :: check_ok
-    TYPE(fb_matrix_block), ALLOCATABLE, &
-      DIMENSION(:)                           :: tmp_blks
 
-    check_ok = fb_matrix_data_has_data(matrix_data)
-    CPASSERT(check_ok)
-    my_nmax = MAX(nmax, matrix_data%obj%nblks)
-    ! resize the blks array, no need to reindex, as blks in the blks
-    ! are always added to the array sequencially, and so their address
-    ! do not change upon resizing.
-    IF (ASSOCIATED(matrix_data%obj%blks)) THEN
-       ALLOCATE(tmp_blks(matrix_data%obj%nblks))
-       DO ii = 1, SIZE(tmp_blks)
-          NULLIFY(tmp_blks(ii)%p)
-       END DO
-       DO ii = 1, matrix_data%obj%nblks
-          tmp_blks(ii)%p => matrix_data%obj%blks(ii)%p
-       END DO
-       DEALLOCATE(matrix_data%obj%blks)
-       ALLOCATE(matrix_data%obj%blks(my_nmax))
-       DO ii = 1, SIZE(matrix_data%obj%blks)
-          NULLIFY(matrix_data%obj%blks(ii)%p)
-       END DO
-       DO ii = 1, matrix_data%obj%nblks
-          matrix_data%obj%blks(ii)%p => tmp_blks(ii)%p
-       END DO
-       DEALLOCATE(tmp_blks)
-    ELSE
-       ALLOCATE(matrix_data%obj%blks(my_nmax))
-       DO ii = 1, SIZE(matrix_data%obj%blks)
-          NULLIFY(matrix_data%obj%blks(ii)%p)
-       END DO
-    END IF
-    matrix_data%obj%nmax = my_nmax
-  END SUBROUTINE fb_matrix_data_resize
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 
 ! *****************************************************************************
 !> \brief outputs the current information about fb_matrix_data object
@@ -410,8 +340,8 @@ CONTAINS
 !> \param nmax        : outputs fb_matrix_data%obj%nmax
 !> \param nblks       : outputs fb_matrix_data%obj%nblks
 !> \param nencode     : outputs fb_matrix_data%obj%nencode
-!> \param blk_sizes   : blk_sizes(ii,jj) gives size of jj-th dim of the 
-!>                      ii-th block stored 
+!> \param blk_sizes   : blk_sizes(ii,jj) gives size of jj-th dim of the
+!>                      ii-th block stored
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_status(matrix_data, nmax, nblks, nencode, blk_sizes)
