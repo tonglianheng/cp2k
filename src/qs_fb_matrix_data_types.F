@@ -41,8 +41,6 @@ MODULE qs_fb_matrix_data_types
   INTEGER, PRIVATE, SAVE :: last_fb_matrix_data_id = 0
 
   ! Parameters related to automatic resizing of matrix_data:
-  ! Resize by EXPAND_FACTOR if total no. slots / no. of filled slots < ENLARGE_RATIO
-  INTEGER, PARAMETER, PRIVATE :: ENLARGE_RATIO = 1
   INTEGER, PARAMETER, PRIVATE :: EXPAND_FACTOR = 2
 
 ! *****************************************************************************
@@ -63,6 +61,7 @@ MODULE qs_fb_matrix_data_types
 !> \param ind       : hash table maping the global combined index of the blocks
 !>                    to the location in the data area
 !> \param blks      : data area, well the matrix elements are actuaally stored
+!> \param lds       : leading dimensions of each block
 !> \param id_nr     : unique id for the object
 !> \param ref_count : reference counter for the object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -75,6 +74,7 @@ MODULE qs_fb_matrix_data_types
      TYPE(fb_hash_table_obj) :: ind
 !     TYPE(fb_matrix_block), DIMENSION(:), POINTER :: blks => NULL()
      TYPE(fb_buffer_d_obj) :: blks
+     INTEGER, DIMENSION(:,:), POINTER :: lds
   END TYPE fb_matrix_data_data
 
 ! *****************************************************************************
@@ -106,23 +106,36 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: existing_ii, ii, ncols, nrows
+    INTEGER                                  :: existing_ii, ii, &
+                                                nrows, old_nblks
     INTEGER(KIND=int_8)                      :: pair_ind
+    INTEGER, DIMENSION(:), POINTER           :: new_lds
     LOGICAL                                  :: check_ok, found
 
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
+    NULLIFY(new_lds)
     nrows = SIZE(blk, 1)
-    ncols = SIZE(blk, 2)
     ! first check if the block already exists in matrix_data
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found)
     IF (found) THEN
        CALL fb_buffer_replace(matrix_data%obj%blks, existing_ii, blk)
     ELSE
-       matrix_data%obj%nblks = matrix_data%obj%nblks + 1
+       old_nblks = matrix_data%obj%nblks
+       matrix_data%obj%nblks = old_nblks + 1
        ii = matrix_data%obj%nblks
+       ! resize lds if necessary
+       IF (SIZE(matrix_data%obj%lds) .LT. ii) THEN
+          ALLOCATE(new_lds(ii*EXPAND_FACTOR))
+          new_lds = 0
+          new_lds(1:old_nblks) = matrix_data%obj%lds(1:old_nblks)
+          DEALLOCATE(matrix_data%obj%lds)
+          matrix_data%obj%lds => new_lds
+       END IF
        ! add data block
+       matrix_data%obj%lds(ii) = nrows
+!TODO:LT:2016/02/10 need to reshape blk becore add to buffer
        CALL fb_buffer_add(matrix_data%obj%blks, blk)
        ! record blk index in the index table
        CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii)
