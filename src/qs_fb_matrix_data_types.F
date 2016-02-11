@@ -21,7 +21,8 @@ MODULE qs_fb_matrix_data_types
                                 fb_buffer_has_data, &
                                 fb_buffer_retain, &
                                 fb_buffer_release, &
-                                fb_buffer_replace
+                                fb_buffer_replace, &
+                                fb_buffer_nullify
 
 #include "./base/base_uses.f90"
 
@@ -33,11 +34,12 @@ MODULE qs_fb_matrix_data_types
   PUBLIC :: fb_matrix_data_obj
 
   ! public methods
-  PUBLIC :: fb_matrix_data_add,&
-            fb_matrix_data_create,&
-            fb_matrix_data_get,&
-            fb_matrix_data_has_data,&
-            fb_matrix_data_nullify,&
+  PUBLIC :: fb_matrix_data_add, &
+            fb_matrix_data_create, &
+            fb_matrix_data_get, &
+            fb_matrix_data_has_data, &
+            fb_matrix_data_nullify, &
+            fb_matrix_data_status, &
             fb_matrix_data_release
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_matrix_data_types'
@@ -67,7 +69,7 @@ MODULE qs_fb_matrix_data_types
      INTEGER :: nencode
      TYPE(fb_hash_table_obj) :: ind
      TYPE(fb_buffer_d_obj) :: blks
-     INTEGER, DIMENSION(:,:), POINTER :: lds => NULL()
+     INTEGER, DIMENSION(:), POINTER :: lds => NULL()
   END TYPE fb_matrix_data_data
 
 ! *****************************************************************************
@@ -114,7 +116,7 @@ CONTAINS
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found)
     IF (found) THEN
-       CALL fb_buffer_replace(matrix_data%obj%blks, existing_ii, blk)
+       CALL fb_buffer_replace(matrix_data%obj%blks, existing_ii, RESHAPE(blk,(/nrows*ncols/)))
     ELSE
        old_nblks = matrix_data%obj%nblks
        matrix_data%obj%nblks = old_nblks + 1
@@ -129,7 +131,7 @@ CONTAINS
        END IF
        ! add data block
        matrix_data%obj%lds(ii) = nrows
-       CALL fb_buffer_add(matrix_data%obj%blks, RESHAPE(blk, (/nrows*ncols/)))
+       CALL fb_buffer_add(matrix_data%obj%blks, RESHAPE(blk,(/nrows*ncols/)))
        ! record blk index in the index table
        CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii)
     END IF
@@ -202,8 +204,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_get', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: blk_1d
-    INTEGER                                  :: ind_in_blks, nrows
+    INTEGER                                  :: ind_in_blks
     INTEGER(KIND=int_8)                      :: pair_ind
     LOGICAL                                  :: check_ok
 
@@ -214,16 +215,8 @@ CONTAINS
     IF (found) THEN
        CALL fb_buffer_get(buffer=matrix_data%obj%blks, &
                           i_slice=ind_in_blks, &
-                          data=blk_1d)
-       ! cannot, or rather, it is inefficient to use reshape here, as
-       ! a) reshape does not return a targeted array, so cannot
-       ! associate pointer unless copied to a targeted array. b) in
-       ! F2003 standard, pointers should rank remap automatically by
-       ! association, as blk_1d has rank 1
-       nrows = matrix_data%obj%lds(ind_in_blks)
-       ncols = SIZE(blk_1d) / nrows
-       CPASSERT(SIZE(blk_1d) == nrows*ncols)
-       blk_p(1:nrows,1:ncols) => blk_1d(:)
+                          data_2d=blk_p, &
+                          data_2d_ld=matrix_data%obj%lds(ind_in_blks))
     ELSE
        NULLIFY(blk_p)
     END IF
@@ -259,7 +252,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, my_nmax
+    INTEGER                                  :: my_nmax
     LOGICAL                                  :: check_ok
 
     check_ok = fb_matrix_data_has_data(matrix_data)
@@ -305,7 +298,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii
     LOGICAL                                  :: check_ok
 
     IF (ASSOCIATED(matrix_data%obj)) THEN

@@ -624,8 +624,8 @@ CONTAINS
     END IF
     ! obj meta data update
     buffer%obj%ref_count = 1
-    buffer%obj%id_nr = last_fb_buffer_i_id + 1
-    last_fb_buffer_i_id = buffer%obj%id_nr
+    buffer%obj%id_nr = last_fb_buffer_d_id + 1
+    last_fb_buffer_d_id = buffer%obj%id_nr
   END SUBROUTINE fb_buffer_d_create
 
 ! *****************************************************************************
@@ -730,17 +730,32 @@ CONTAINS
 !>                   to i_slice-th slice
 !>                else:
 !>                   return pointer to the entire non-empty part of the data array
+!> \param data_2d : similar to data, but with the 1D data array reshaped to 2D
+!>                  works only with i_slice present
+!> \param data_2d_ld : leading dimension for data_2d for slice i_slice
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_buffer_d_get(buffer, i_slice, n, data_size, sizes, disps, data)
+  SUBROUTINE fb_buffer_d_get(buffer, &
+                             i_slice, &
+                             n, &
+                             data_size, &
+                             sizes, &
+                             disps, &
+                             data, &
+                             data_2d, &
+                             data_2d_ld)
     TYPE(fb_buffer_d_obj), INTENT(IN)            :: buffer
     INTEGER, INTENT(IN), OPTIONAL                :: i_slice
     INTEGER, INTENT(OUT), OPTIONAL               :: n, data_size
     INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL :: sizes, disps
     REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL  :: data
+    REAL(KIND=dp), DIMENSION(:,:), POINTER, OPTIONAL :: data_2d
+    INTEGER, INTENT(IN), OPTIONAL  :: data_2d_ld
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_buffer_d_get', &
       routineP = moduleN//':'//routineN
+
+    INTEGER :: ncols, slice_size
 
     IF (PRESENT(n)) n = buffer%obj%n
     IF (PRESENT(data_size)) data_size = buffer%obj%disps(buffer%obj%n+1)
@@ -759,6 +774,21 @@ CONTAINS
        ELSE
           data => buffer%obj%data(1 : buffer%obj%disps(buffer%obj%n+1))
        END IF
+    END IF
+    IF (PRESENT(data_2d)) THEN
+       CPASSERT(PRESENT(data_2d_ld))
+       CPASSERT(PRESENT(i_slice))
+       ! cannot, or rather, it is inefficient to use reshape here, as
+       ! a) reshape does not return a targeted array, so cannot
+       ! associate pointer unless copied to a targeted array. b) in
+       ! F2003 standard, pointers should rank remap automatically by
+       ! association to a rank 1 array
+       slice_size = buffer%obj%disps(i_slice+1) - buffer%obj%disps(i_slice)
+       ncols = slice_size / data_2d_ld
+       CPASSERT(slice_size == data_2d_ld*ncols)
+       data_2d(1:data_2d_ld, 1:ncols) => &
+            buffer%obj%data(buffer%obj%disps(i_slice) + 1 : &
+                            buffer%obj%disps(i_slice+1))
     END IF
   END SUBROUTINE fb_buffer_d_get
 
