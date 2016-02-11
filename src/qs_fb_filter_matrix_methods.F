@@ -1114,13 +1114,11 @@ CONTAINS
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_send, &
                                        atom_pairs=atom_pairs_send, &
                                        natoms_encode=nblkrows_total, &
-                                       send_or_recv="send", &
-                                       symmetric=.FALSE.)
+                                       send_or_recv="send")
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_recv, &
                                        atom_pairs=atom_pairs_recv, &
                                        natoms_encode=nblkrows_total, &
-                                       send_or_recv="recv", &
-                                       symmetric=.FALSE.)
+                                       send_or_recv="recv")
 
     ! cleanup
     CALL fb_com_tasks_release(com_tasks_recv)
@@ -1274,13 +1272,11 @@ CONTAINS
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_send, &
                                        atom_pairs=atom_pairs_send, &
                                        natoms_encode=nblkrows_total, &
-                                       send_or_recv="send", &
-                                       symmetric=.FALSE.)
+                                       send_or_recv="send")
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_recv, &
                                        atom_pairs=atom_pairs_recv, &
                                        natoms_encode=nblkrows_total, &
-                                       send_or_recv="recv", &
-                                       symmetric=.FALSE.)
+                                       send_or_recv="recv")
 
     ! cleanup
     CALL fb_com_tasks_release(com_tasks_recv)
