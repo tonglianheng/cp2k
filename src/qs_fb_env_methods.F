@@ -318,8 +318,8 @@ CONTAINS
        CALL fb_env_get(fb_env=fb_env, &
                        collective_com=collective_com)
        IF (collective_com) THEN
-          CALL fb_fltrmat_build_2(H_mat=matrix_ks_desymm%matrix, &
-                                  S_mat=matrix_s_desymm%matrix, &
+          CALL fb_fltrmat_build_2(H_mat=matrix_ks(ispin)%matrix, &
+                                  S_mat=matrix_s(ispin)%matrix, &
                                   atomic_halos=atomic_halos, &
                                   trial_fns=trial_fns, &
                                   para_env=para_env, &

@@ -674,7 +674,7 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    
+
     NULLIFY(halo_atoms, tasks_send, tasks_recv)
     CALL fb_com_tasks_nullify(com_tasks_send)
     CALL fb_com_tasks_nullify(com_tasks_recv)

@@ -1258,6 +1258,9 @@ CONTAINS
        END DO ! iatom_in_halo
     END DO ! ihalo
 
+    ! get the actual number of tasks
+    ntasks_send = itask - 1
+
     CALL fb_com_tasks_create(com_tasks_send)
     CALL fb_com_tasks_set(com_tasks=com_tasks_send, &
                           task_dim=TASK_N_RECORDS, &
