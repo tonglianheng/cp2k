@@ -1014,13 +1014,12 @@ CONTAINS
       routineN = 'fb_fltrmat_generate_com_pairs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dest, handle, iatom_global, iatom_in_halo, iatom_stored, &
-      itask, jatom_global, jatom_stored, natoms_in_halo, nblkrows_total, &
-      ntasks_send, src
+    INTEGER :: dest, handle, iatom_global, jatom_global, &
+               iatom_in_halo, itask, natoms_in_halo, nblkrows_total, &
+               ntasks_send, src
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: transpose
     TYPE(fb_com_tasks_obj)                   :: com_tasks_recv, com_tasks_send
 
     CALL timeset(routineN, handle)
@@ -1081,13 +1080,10 @@ CONTAINS
     itask = 1
     DO iatom_in_halo = 1, natoms_in_halo
        iatom_global = halo_atoms(iatom_in_halo)
-       iatom_stored = iatom_global
-       jatom_stored = jatom_global
-       transpose = .FALSE.
        ! find where the constructed block of filter matrix belongs to
        CALL cp_dbcsr_get_stored_coordinates(filter_mat, &
-                                            iatom_stored, &
-                                            jatom_stored, &
+                                            iatom_global, &
+                                            jatom_global, &
                                             processor=dest)
        ! create the send tasks
        tasks_send(TASK_DEST,itask) = dest

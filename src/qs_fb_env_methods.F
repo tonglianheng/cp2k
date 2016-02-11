@@ -319,7 +319,7 @@ CONTAINS
                        collective_com=collective_com)
        IF (collective_com) THEN
           CALL fb_fltrmat_build_2(H_mat=matrix_ks(ispin)%matrix, &
-                                  S_mat=matrix_s(ispin)%matrix, &
+                                  S_mat=matrix_s(1)%matrix, &
                                   atomic_halos=atomic_halos, &
                                   trial_fns=trial_fns, &
                                   para_env=para_env, &
@@ -330,8 +330,8 @@ CONTAINS
                                   filter_mat=matrix_filter(ispin)%matrix, &
                                   tolerance=eps_default)
        ELSE
-          CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
-                                S_mat=matrix_s_desymm%matrix, &
+          CALL fb_fltrmat_build(H_mat=matrix_ks(ispin)%matrix, &
+                                S_mat=matrix_s(1)%matrix, &
                                 atomic_halos=atomic_halos, &
                                 trial_fns=trial_fns, &
                                 para_env=para_env, &
