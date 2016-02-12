@@ -792,9 +792,9 @@ CONTAINS
       routineN = 'fb_com_tasks_build_atom_pairs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, ii, &
-                                                itask, jatom, npairs, &
-                                                ntasks, rank, rank_pos
+    INTEGER                                  :: handle, iatom, ii, itask, &
+                                                jatom, npairs, ntasks, rank, &
+                                                rank_pos
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs

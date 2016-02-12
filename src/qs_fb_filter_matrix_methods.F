@@ -1014,9 +1014,8 @@ CONTAINS
       routineN = 'fb_fltrmat_generate_com_pairs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dest, handle, iatom_global, jatom_global, &
-               iatom_in_halo, itask, natoms_in_halo, nblkrows_total, &
-               ntasks_send, src
+    INTEGER :: dest, handle, iatom_global, iatom_in_halo, itask, &
+      jatom_global, natoms_in_halo, nblkrows_total, ntasks_send, src
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms

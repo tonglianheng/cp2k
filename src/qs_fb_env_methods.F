@@ -19,10 +19,9 @@ MODULE qs_fb_env_methods
        cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_info, &
        cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-       cp_dbcsr_multiply, cp_dbcsr_nfullcols_total, &
-       cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_nfullcols_total, cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, &
        cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&

@@ -7,6 +7,14 @@ MODULE qs_fb_matrix_data_types
 
   USE kinds,                           ONLY: dp,&
                                              int_8
+  USE qs_fb_buffer_types,              ONLY: fb_buffer_add,&
+                                             fb_buffer_create,&
+                                             fb_buffer_d_obj,&
+                                             fb_buffer_get,&
+                                             fb_buffer_has_data,&
+                                             fb_buffer_nullify,&
+                                             fb_buffer_release,&
+                                             fb_buffer_replace
   USE qs_fb_hash_table_types,          ONLY: fb_hash_table_add,&
                                              fb_hash_table_create,&
                                              fb_hash_table_get,&
@@ -14,16 +22,6 @@ MODULE qs_fb_matrix_data_types
                                              fb_hash_table_nullify,&
                                              fb_hash_table_obj,&
                                              fb_hash_table_release
-  USE qs_fb_buffer_types, ONLY: fb_buffer_d_obj, &
-                                fb_buffer_create, &
-                                fb_buffer_add, &
-                                fb_buffer_get, &
-                                fb_buffer_has_data, &
-                                fb_buffer_retain, &
-                                fb_buffer_release, &
-                                fb_buffer_replace, &
-                                fb_buffer_nullify
-
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -101,8 +99,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: existing_ii, ii, &
-                                                nrows, ncols, old_nblks
+    INTEGER                                  :: existing_ii, ii, ncols, &
+                                                nrows, old_nblks
     INTEGER(KIND=int_8)                      :: pair_ind
     INTEGER, DIMENSION(:), POINTER           :: new_lds
     LOGICAL                                  :: check_ok, found
@@ -363,7 +361,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: buffer_sizes
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: buffer_sizes
     LOGICAL                                  :: check_ok
 
     check_ok = fb_matrix_data_has_data(matrix_data)
