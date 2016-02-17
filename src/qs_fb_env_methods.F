@@ -1001,6 +1001,53 @@ CONTAINS
   END SUBROUTINE fb_env_build_atomic_halos
 
 
+  SUBROUTINE fb_env_get_trial_fns_numbers(fb_env, qs_env, maxocc)
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), INTENT(IN)                :: maxocc
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_trial_fns_auto', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(fb_trial_fns_obj)                   :: trial_fns
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    INTEGER :: nkinds, ikind, max_n_trial
+    REAL(KIND=dp)                            :: zeff
+    INTEGER, DIMENSION(:), POINTER           :: nfunctions
+    INTEGER, DIMENSION(:,:), POINTER         :: functions
+
+    NULLIFY(qs_kind_set, nfunctions)
+    CALL fb_trial_fns_nullify(trial_fns)
+    CALL fb_trial_fns_create(trial_fns)
+    CALL get_qs_env(qs_env=qs_env, &
+                    qs_kind_set=qs_kind_set)
+    nkinds = SIZE(qs_kind_set)
+    ALLOCATE(nfunctions(nkinds))
+    nfunctions = 0
+    DO ikind = 1, nkinds
+       CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
+                        zeff=zeff)
+       nfunctions(ikind) = INT(zeff / maxocc)
+       IF (maxocc * nfunctions(ikind) .LT. zeff) THEN
+          nfunctions(ikind) = nfunctions(ikind) + 1
+       END IF
+    END DO
+    max_n_trial = MAXVAL(nfunctions)
+    ! create empty trial functions list. They are to be filled later
+    ALLOCATE(functions(max_n_trial,nkinds))
+    functions = 0
+    ! set trial functions
+    CALL fb_trial_fns_set(trial_fns=trial_fns, &
+                          nfunctions=nfunctions, &
+                          functions=functions)
+    ! set fb_env
+    CALL fb_env_set(fb_env=fb_env, &
+                    trial_fns=trial_fns)
+    CALL fb_trial_fns_release(trial_fns)
+  END SUBROUTINE fb_env_get_trial_fns_numbers
+
+
 ! *****************************************************************************
 !> \brief Automatically construct the trial functiosn used for generating
 !>        the filter matrix. It tries to use the single zeta subset from

@@ -55,6 +55,7 @@ MODULE qs_fb_trial_fns_types
      TYPE(fb_trial_fns_data), POINTER, PRIVATE :: obj
   END TYPE fb_trial_fns_obj
 
+  REAL(KIND=dp), EXTERNAL :: ddot
 
 CONTAINS
 
@@ -209,15 +210,18 @@ CONTAINS
 !> \param trial_fns  : the fb_trial_fns object in question
 !> \param nfunctions : outputs pointer to trial_fns%obj%nfunctions
 !> \param functions  : outputs pointer to trial_fns%obj%functions
+!> \param max_nfunctions : outputs MAXVAL(nfunctions)
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_trial_fns_get(trial_fns, &
                               nfunctions, &
-                              functions)
+                              functions, &
+                              max_nfunctions)
     TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nfunctions
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: functions
+    INTEGER, OPTIONAL :: max_nfunctions
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_get', &
       routineP = moduleN//':'//routineN
@@ -225,6 +229,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(trial_fns%obj))
     IF (PRESENT(nfunctions)) nfunctions => trial_fns%obj%nfunctions
     IF (PRESENT(functions)) functions => trial_fns%obj%functions
+    IF (PRESENT(max_nfunctions)) max_nfunctions = MAXVAL(trial_fns%obj%nfunctions)
   END SUBROUTINE fb_trial_fns_get
 
 
@@ -260,5 +265,71 @@ CONTAINS
        trial_fns%obj%functions => functions
     END IF
   END SUBROUTINE fb_trial_fns_set
+
+
+  !!!!!!!!!!!!!!!!!!!
+
+  SUBROUTINE fb_trial_fns_build(trial_fns, atomic_filter_mat)
+
+  END SUBROUTINE fb_trial_fns_build
+
+  SUBROUTINE linear_independence_check(vec, dim, existing_vecs, n_existing, n_max, overlap, res)
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: vec
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: existing_vecs
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT) :: overlap
+    INTEGER, INTENT(IN) :: dim, n_existing, n_max
+    LOGICAL, INTENT(OUT) :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'linear_independence_check', &
+         routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: my_overlap
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: work, eigenvalues
+    INTEGER :: ii, nn, stat, lwork, info
+    REAL(KIND=dp), PARAMETER :: TOLERANCE = 1e-12
+
+    res = .TRUE.
+
+    ! calculating new elements of the overlap matrix in the UPPER triangular
+    ! part only. The overlap matrix is symmetric
+    nn = n_existing + 1
+    DO ii = 1, n_existing
+       overlap(ii,nn) = ddot(dim, vec(:), 1, existing_vecs(:,ii), 1)
+    END DO
+    overlap(nn,nn) = ddot(dim, vec(:), 1, vec(:), 1)
+
+    IF (n_existing == 0) THEN
+       RETURN
+    END IF
+
+    ! since the number of exisitng_vecs and the dimiension is expected to be
+    ! small, use diagonalisation to find eigenvalues here, and we don't care
+    ! about work array size, just large enough may be sufficient
+    lwork = 3*nn - 1
+    ALLOCATE(work(lwork), STAT=stat)
+    ! the target matrix will be destroyed affter dsyev, so must make copy
+    ALLOCATE(my_overlap(nn,nn), STAT=stat)
+    CALL dlacpy("U", nn, nn, overlap, n_max, my_overlap, nn)
+    ALLOCATE(eigenvalues(nn), STAT=stat)
+
+    ! the target matrix will be destroyed affter dsyev, so must make copy
+    ALLOCATE(my_overlap(nn,nn), STAT=stat)
+    CALL dlacpy("U", nn, nn, overlap, n_max, my_overlap, nn)
+    ALLOCATE(eigenvalues(nn), STAT=stat)
+    ! calculate eigen values
+    CALL dsyev("N", "U", nn, my_overlap, nn, eigenvalues, work, lwork, info)
+
+        ! check if all eigenvalues are positive
+    DO ii = 1, nn
+       IF (eigenvalues(ii) .LT. TOLERANCE) THEN
+          res = .FALSE.
+          EXIT
+       END IF
+    END DO
+
+    DEALLOCATE(work, STAT=stat)
+    DEALLOCATE(my_overlap, STAT=stat)
+    DEALLOCATE(eigenvalues, STAT=stat)
+  END SUBROUTINE is_linearly_independent
 
 END MODULE qs_fb_trial_fns_types
