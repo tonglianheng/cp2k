@@ -733,6 +733,17 @@ CONTAINS
        END IF
     END IF
     IF (my_method == cholesky_off) THEN
+       ! In this case overlap may be ill conditioned. We first
+       ! diagonalise it, and set all eigenvalues smaller than a
+       ! threshold to zero
+       CALL cp_fm_to_fm(fm_S, fm_ortho)
+       CALL choose_eigv_solver(fm_ortho, fm_work, eigenvalues)
+       
+
+
+
+
+
        ! calculating ortho as S^-1/2 using diagonalisation of S, and
        ! solve accordingly
        CALL cp_fm_to_fm(fm_S, fm_ortho)
@@ -756,6 +767,31 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE fb_env_eigensolver
+
+
+  SUBROUTINE fb_env_eigensolver_illcon(fm_KS, fm_S, mo_set)
+    
+    n_dep = 0
+    CALL choose_eigv_solver(fm_S, eigenvectors, eigenvalues)
+
+#if defined(__SCALAPACK)
+#else
+    DO icol_global = 1, ncols_global
+       If (eigenvalues(icol_global) < threshold) THEN
+          n_dep = n_dep + 1
+          QHT(icol_global,1:nrows_global) = 0.0_dp
+          QPT(icol_global,1:nrows_global) = 0.0_dp
+       ELSE
+          ff = SQRT(eigenvalues(icol_global))
+          QHT(icol_global,1:nrows_global) = (1.0_dp/ff) * eigenvectors(1:nrows_global,icol_global)
+          QPT(icol_global,1:nrows_global) = ff * eigenvectors(1:nrows_global,icol_global)
+       END If
+    END DO
+    
+#endif
+
+  END SUBROUTINE fb_env_eigensolver_illcon
+
 
 
 ! *****************************************************************************
