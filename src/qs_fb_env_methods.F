@@ -261,7 +261,12 @@ CONTAINS
 
     ! construct trial functions
     CALL get_mo_set(mo_set=mos(1)%mo_set, maxocc=maxocc)
+
+!BEG:DEBUG:LT:2016/02/18
     CALL fb_env_build_trial_fns_auto(fb_env, qs_env, maxocc)
+!END:DEBUG:LT:2016/02/18
+!    CALL fb_env_get_trial_fns_numbers(fb_env, qs_env, maxocc)
+
     CALL fb_env_get(fb_env=fb_env, &
                     trial_fns=trial_fns)
 

@@ -5,6 +5,8 @@
 
 MODULE qs_fb_trial_fns_types
 
+  USE kinds, ONLY: dp
+
 #include "./base/base_uses.f90"
   IMPLICIT NONE
 
@@ -21,7 +23,8 @@ MODULE qs_fb_trial_fns_types
             fb_trial_fns_has_data,&
             fb_trial_fns_create,&
             fb_trial_fns_get,&
-            fb_trial_fns_set
+            fb_trial_fns_set, &
+            fb_trial_fns_build_insitu
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_trial_fns_types'
   INTEGER, PRIVATE, SAVE :: last_fb_trial_fns_id = 0
@@ -269,11 +272,66 @@ CONTAINS
 
   !!!!!!!!!!!!!!!!!!!
 
-  SUBROUTINE fb_trial_fns_build(trial_fns, atomic_filter_mat)
+  SUBROUTINE fb_trial_fns_build_insitu(functions, nfunctions, candidate_set)
+    INTEGER, DIMENSION(:), INTENT(OUT) :: functions
+    INTEGER, INTENT(IN) :: nfunctions
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: candidate_set
 
-  END SUBROUTINE fb_trial_fns_build
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_build_insitu', &
+         routineP = moduleN//':'//routineN
 
-  SUBROUTINE linear_independence_check(vec, dim, existing_vecs, n_existing, n_max, overlap, res)
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: accepted_cols, overlap
+    INTEGER :: n_candidates, n_dim, n_accepted, ii
+    LOGICAL :: check_ok
+
+    functions = 0
+    n_candidates = SIZE(candidate_set, 2)
+    n_dim = SIZE(candidate_set, 1)
+
+    ALLOCATE(overlap(n_candidates,n_candidates))
+    ALLOCATE(accepted_cols(n_dim, n_candidates))
+    overlap = 0.0_dp
+    accepted_cols = 0.0_dp
+
+    check_ok = .FALSE.
+    n_accepted = 0
+    cd: DO ii = 1, n_candidates
+       IF (n_accepted == nfunctions) THEN
+          EXIT cd
+       END IF
+       CALL linear_independence_check(candidate_set(:,ii), &
+                                      n_dim, &
+                                      accepted_cols, &
+                                      n_accepted, &
+                                      n_candidates, &
+                                      overlap, &
+                                      check_ok)
+       IF (check_ok) THEN
+          n_accepted = n_accepted + 1
+          functions(n_accepted) = ii
+          accepted_cols(:,n_accepted) = candidate_set(:,ii)
+       END IF
+    END DO cd
+    DEALLOCATE(overlap)
+    DEALLOCATE(accepted_cols)
+    ! check if we have obtained nfunctions
+    IF (n_accepted .NE. nfunctions) THEN
+       CALL cp_abort(__LOCATION__, &
+                     "Unable to find enough trial functions dynamically that"//&
+                     "would produce a linearly independent filtered basis set."//&
+                     "Consider increase filter termperature or use a larger"//&
+                     "basis set for you calculation.")
+    END IF
+  END SUBROUTINE fb_trial_fns_build_insitu
+
+
+  SUBROUTINE linear_independence_check(vec, &
+                                       dim, &
+                                       existing_vecs, &
+                                       n_existing, &
+                                       n_max, &
+                                       overlap, &
+                                       res)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: vec
     REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: existing_vecs
     REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT) :: overlap
@@ -286,7 +344,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: my_overlap
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: work, eigenvalues
     INTEGER :: ii, nn, stat, lwork, info
-    REAL(KIND=dp), PARAMETER :: TOLERANCE = 1e-12
+    REAL(KIND=dp), PARAMETER :: TOLERANCE = 1e-5_dp
 
     res = .TRUE.
 
@@ -319,7 +377,7 @@ CONTAINS
     ! calculate eigen values
     CALL dsyev("N", "U", nn, my_overlap, nn, eigenvalues, work, lwork, info)
 
-        ! check if all eigenvalues are positive
+    ! check if all eigenvalues are positive
     DO ii = 1, nn
        IF (eigenvalues(ii) .LT. TOLERANCE) THEN
           res = .FALSE.
@@ -330,6 +388,6 @@ CONTAINS
     DEALLOCATE(work, STAT=stat)
     DEALLOCATE(my_overlap, STAT=stat)
     DEALLOCATE(eigenvalues, STAT=stat)
-  END SUBROUTINE is_linearly_independent
+  END SUBROUTINE linear_independence_check
 
 END MODULE qs_fb_trial_fns_types

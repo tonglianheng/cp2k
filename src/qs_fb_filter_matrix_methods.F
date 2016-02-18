@@ -50,7 +50,8 @@ MODULE qs_fb_filter_matrix_methods
                                              fb_matrix_data_obj,&
                                              fb_matrix_data_release
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_get,&
-                                             fb_trial_fns_obj
+                                             fb_trial_fns_obj,&
+                                             fb_trial_fns_build_insitu
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE util,                            ONLY: sort
@@ -519,10 +520,10 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fb_com_atom_pairs_obj)              :: com_pairs_recv, com_pairs_send
 
-    INTEGER :: max_size, block_size, ii, max_ntfns, test_set_size
+    INTEGER :: max_ntfns, owner, owner_in_halo, owner_kind
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: atomic_filter_mat_S
     INTEGER, DIMENSION(:), ALLOCATABLE :: tfns_insitu
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: test_set
-    INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
+
 
     CALL timeset(routineN, handle)
 
@@ -669,6 +670,14 @@ CONTAINS
     ! in send_buffer
     ! ----------------------------------------------------------------------
 
+    ! get owner atom info
+    CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
+                            owner_atom=owner, &
+                            owner_id_in_halo=owner_in_halo)
+    atomic_kind => particle_set(owner)%atomic_kind
+    CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=owner_kind)
+
+    ! compute atomic_filter_mat times atomic_S
     ALLOCATE(atomic_filter_mat_S(nrows_atmatrix,ncols_atmatrix))
     atomic_filter_mat_S = 0.0_dp
     CALL dgemm("N",                   &
@@ -684,31 +693,31 @@ CONTAINS
                0.0_dp,                &
                atomic_filter_mat_S,   &
                nrows_atmatrix)
-    ! pick only the trial functions that leads to linearly independent
-    ! basis
-    ALLOCATE(tfns_insitu(max_ntfns, nhalos))
+
+!BEG:DEBUG:LT:2016/02/18
+    ! DO iatom_in_halo = 1, SIZE(atomic_filter_mat_S, 1)
+    !    DO jatom_in_halo = 1, SIZE(atomic_filter_mat_S, 2)
+    !       IF (ABS(atomic_filter_mat_S(iatom_in_halo, jatom_in_halo)) .LT. 1E-10_dp) &
+    !            atomic_filter_mat_S(iatom_in_halo, jatom_in_halo) = 0.0_dp
+    !    END DO
+    ! END DO
+!END:DEBUG:LT:2016/02/18
+
+    ! calculate which trial functions to pick in-situ for this halo
+    ! based on the atomic filter matrix, pick only the atomic trial
+    ! functions that leads to linearly independent set after filtering
+    ALLOCATE(tfns_insitu(max_ntfns))
     tfns_insitu = 0
-    DO iatoms_in_halo = 1, natoms_in_halo
-       block_size = atomic_H_blk_col_start(iatom_in_halo+1) - &
-                    atomic_H_blk_col_start(iatom_in_halo)
-       ! always accept the first orbital
-       tfns(1,iatoms_in_halo) = 1
-       naccepted = 1
-       DO i_orb = 2, block_size
-          ! check if column of atomic_filter_mat_S is linearly
-          ! independent to previously accepted columns
-          test_col_ind = atomic_H_blk_col_start(iatom_in_halo) + &
-                         i_orb - 1
-          norm_test_col = dnorm2(atomic_filter_mat_S)
-          DO itrial = 1, naccepted
-             col_ind = atomic_H_blk_col_start(iatom_in_halo) + &
-                       tfns(itrial,iatoms_in_halo) - 1
-             dot_product = ddot(atomic_filter_mat_S(:,col_ind), &
-                                atomic_filter_mat_S(:,test_col_ind))
-             norm_col = 
-          END DO
-    END DO
-    
+    CALL fb_trial_fns_build_insitu(tfns_insitu, &
+                                   ntfns(owner_kind), &
+                                   atomic_filter_mat_S(&
+                                     1 : nrows_atmatrix,&
+                                     atomic_H_blk_col_start(owner_in_halo) : &
+                                     atomic_H_blk_col_start(owner_in_halo+1)-1&
+                                   ))
+!BEG:DEBUG:LT:2016/02/18
+    tfns_insitu(:) = tfns(:,owner_kind)
+!END:DEBUG:LT:2016/02/18
 
     ! preconstruct iatom_global to iatom_in_halo map
     ALLOCATE(ind_in_halo(natoms_global))
@@ -718,23 +727,9 @@ CONTAINS
        ind_in_halo(iatom_global) = iatom_in_halo
     END DO
 
-    ! allocate test sets for trial function chooser
-    max_size = 0
-    DO iatom_in_halo = 1, natoms_in_halo
-       block_size = atomic_H_blk_row_start(iatom_in_halo+1) - &
-                    atomic_H_blk_row_start(iatom_in_halo)
-       max_size = MAX(max_size, block_size)
-    END DO
-    ALLOCATE(test_set(max_size))
-    test_set = 0.0_dp
-    ALLOCATE(tmp_index(max_size))
-    tmp_index = 0
-    ALLOCATE(tfns_insitu(max_ntfns))
-    tfns_insitu = 0
-
     ! initialise send buffer
     IF (SIZE(send_buf) > 0) send_buf = 0.0_dp
-    ! assign values
+    ! assign values from atomic_filter_matrix_S
     DO ipe = 1, numprocs
        send_sizes(ipe) = 0
        DO ipair = 1, send_pair_count(ipe)
@@ -743,70 +738,31 @@ CONTAINS
                                         send_encode)
           iatom_in_halo = ind_in_halo(iatom_global)
           CPASSERT(iatom_in_halo>0)
-          jatom_in_halo = ind_in_halo(jatom_global)
-          CPASSERT(jatom_in_halo>0)
-          atomic_kind => particle_set(jatom_global)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                               kind_number=jkind)
+          ! jatom should be the owner
+          CPASSERT(jatom_global == owner)
+          jatom_in_halo = owner_in_halo
+          jkind = owner_kind
+          ! get block size for (iatom_global, jatom_global) block
           nrows_blk = row_block_size_data(iatom_global)
           ncols_blk = ntfns(jkind)
-
-          ! calculate which trial functions to pick in-situ based on
-          ! atomic filter matrix
-          test_set_size = atomic_H_blk_row_start(jatom_in_halo+1) - &
-                          atomic_H_blk_row_start(jatom_in_halo)
-          DO ii = 1, ntfns(jkind)
-             test_set(ii) = atomic_filter_mat(&
-                  atomic_H_blk_row_start(jatom_in_halo) + ii - 1, &
-                  atomic_H_blk_row_start(jatom_in_halo) + ii - 1)
-          END DO
-
-!BEG:DEBUG:LT:2016/02/17
-          print *, "test_set = ", test_set(1:test_set_size)
-!END:DEBUG:LT:2016/02/17
-
-          ! sort test set
-          CALL sort(test_set, test_set_size, tmp_index)
-          DO ii = 1, ntfns(jkind)
-             tfns_insitu(ii) = tmp_index(test_set_size - ii + 1)
-          END DO
-          CALL sort(tfns_insitu, ntfns(jkind), tmp_index)
-
-!BEG:DEBUG:LT:2016/02/17
-          print *, iatom_global, jatom_global
-          print *, tfns_insitu(1:ntfns(jkind))
-!END:DEBUG:LT:2016/02/17
-
-          ! do it column-wise one trial function at a time
+          ! copy data column-wise one trial function at a time
           DO itrial = 1, ntfns(jkind)
              ind = send_disps(ipe) + send_sizes(ipe) + (itrial-1) * nrows_blk
-             CALL dgemv("N",                                           &
-                         nrows_blk,                                    &
-                         ncols_atmatrix,                               &
-                         1.0_dp,                                       &
-                         atomic_filter_mat(                            &
-                           atomic_H_blk_row_start(iatom_in_halo) :     &
-                           atomic_H_blk_row_start(iatom_in_halo+1)-1,  &
-                           1 : ncols_atmatrix                          &
-                         ),                                            &
-                         nrows_blk,                                    &
-                         atomic_S(                                     &
-                           1 : nrows_atmatrix,                         &
-                           atomic_S_blk_col_start(jatom_in_halo) +     &
-                           tfns_insitu(itrial) - 1                     &
-                         ),                                            &
-                         1,                                            &
-                         0.0_dp,                                       &
-                         send_buf(ind + 1 : ind + nrows_blk),          &
-                         1)
-          END DO ! itrial
+             ! transfer the relevent col blks of atomic_filter_mat_S to send_buf
+             send_buf(ind + 1 : ind + nrows_blk) = &
+                  atomic_filter_mat_S(&
+                    atomic_H_blk_row_start(iatom_in_halo) : &
+                    atomic_H_blk_row_start(iatom_in_halo+1)-1, &
+                    atomic_H_blk_col_start(jatom_in_halo) + &
+                    tfns_insitu(itrial) - 1&
+                  )
+          END DO
           send_sizes(ipe) = send_sizes(ipe) + nrows_blk * ncols_blk
        END DO ! ipair
     END DO  ! ipe
 
-    DEALLOCATE(test_set)
-    DEALLOCATE(tmp_index)
     DEALLOCATE(tfns_insitu)
+    DEALLOCATE(atomic_filter_mat_S)
 
     DEALLOCATE(atomic_H)
     DEALLOCATE(atomic_H_blk_row_start)
