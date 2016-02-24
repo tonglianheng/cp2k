@@ -29,6 +29,11 @@ MODULE message_passing
 
 #include "../base/base_uses.f90"
 
+
+#if defined(__parallel) && !defined(__MPI_VERSION)
+#define __MPI_VERSION 3
+#endif
+
 #if defined(__parallel) && ! defined(__HAS_NO_MPI_MOD)
   USE mpi  ! compiler *errors* mean mpi installation and fortran compiler mismatch: see INSTALL (-D__HAS_NO_MPI_MOD)
 ! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines (problems with types and ranks explosion),
@@ -130,9 +135,10 @@ MODULE message_passing
 
   ! message passing
   PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
-  PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
+  PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
   PUBLIC :: mp_isend, mp_irecv
   PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
+  PUBLIC :: mp_testall
   PUBLIC :: mp_gatherv
   PUBLIC :: mp_send, mp_recv
 
@@ -182,6 +188,10 @@ MODULE message_passing
 
   INTERFACE mp_waitall
      MODULE PROCEDURE mp_waitall_1, mp_waitall_2
+  END INTERFACE
+
+  INTERFACE mp_testall
+     MODULE PROCEDURE mp_testall_1
   END INTERFACE
 
   INTERFACE mp_testany
@@ -297,22 +307,38 @@ MODULE message_passing
      MODULE PROCEDURE &
           mp_allgather_i,&
           mp_allgather_i12, mp_allgather_i23, mp_allgather_i34,&
+          mp_allgather_i22,&
           mp_allgather_l,&
           mp_allgather_l12, mp_allgather_l23, mp_allgather_l34,&
+          mp_allgather_l22,&
           mp_allgather_r,&
           mp_allgather_r12, mp_allgather_r23, mp_allgather_r34,&
+          mp_allgather_r22,&
           mp_allgather_d,&
           mp_allgather_d12, mp_allgather_d23, mp_allgather_d34,&
+          mp_allgather_d22,&
           mp_allgather_c,&
           mp_allgather_c12, mp_allgather_c23, mp_allgather_c34,&
+          mp_allgather_c22,&
           mp_allgather_z,&
           mp_allgather_z12, mp_allgather_z23, mp_allgather_z34,&
+          mp_allgather_z22,&
           mp_allgatherv_iv,&
           mp_allgatherv_lv,&
           mp_allgatherv_rv,&
           mp_allgatherv_dv,&
           mp_allgatherv_cv,&
           mp_allgatherv_zv
+  END INTERFACE
+
+  INTERFACE mp_iallgather
+     MODULE PROCEDURE &
+          mp_iallgather_i22, mp_iallgather_l22, &
+          mp_iallgather_r22, mp_iallgather_d22, &
+          mp_iallgather_c22, mp_iallgather_z22, & 
+          mp_iallgather_i33, mp_iallgather_l33, &
+          mp_iallgather_r33, mp_iallgather_d33, &
+          mp_iallgather_c33, mp_iallgather_z33 
   END INTERFACE
 
   INTERFACE mp_scatter
@@ -1676,6 +1702,66 @@ CONTAINS
     CALL mp_timestop(handle)
   END SUBROUTINE mp_waitany
 
+! *****************************************************************************
+!> \brief tests for completion of the given requests
+!> \param requests ...
+!> \retval flag ...
+!> \par History
+!>      24.2016 created
+!> \author Alfio Lazzaro
+! *****************************************************************************
+  FUNCTION mp_testall_1(requests) RESULT(flag)
+    INTEGER, DIMENSION(:), INTENT(inout)  :: requests
+    LOGICAL                               :: flag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_testall_1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+#if defined(__parallel)
+    INTEGER                                  :: count
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+#endif
+
+    ierr = 0
+
+#if defined(__parallel)
+    count = SIZE(requests)
+    ALLOCATE (status(MPI_STATUS_SIZE,count))
+
+    CALL mpi_testall_internal(count,requests,flag,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall_1 @ mp_testall" )
+    DEALLOCATE (status)
+#else
+    MARK_USED(requests)
+    flag = .TRUE.
+#endif
+  END FUNCTION mp_testall_1
+
+! *****************************************************************************
+!> \brief wrapper needed to deal with interfaces as present in openmpi 1.8.1
+!>        the issue is with the rank or requests
+!> \param count ...
+!> \param array_of_requests ...
+!> \param flag ...
+!> \param status ...
+!> \param ierr ...
+!> \author Alfio Lazzaro
+! *****************************************************************************
+#if defined(__parallel)
+  SUBROUTINE mpi_testall_internal(count, array_of_requests, flag, status, ierr)
+    INTEGER, INTENT(in)                      :: count
+    INTEGER, DIMENSION(count), INTENT(inout) :: array_of_requests
+    LOGICAL, INTENT(out)                     :: flag
+    INTEGER, DIMENSION(MPI_STATUS_SIZE,count), &
+      INTENT(out)                            :: status
+    INTEGER, INTENT(out)                     :: ierr
+
+    CALL mpi_testall(count,array_of_requests,flag,status,ierr)
+
+  END SUBROUTINE mpi_testall_internal
+#endif
 
 ! *****************************************************************************
 !> \brief tests for completion of the given requests
@@ -3262,6 +3348,7 @@ CONTAINS
 #if __MPI_VERSION > 2
     CALL mpi_win_lock_all(MPI_MODE_NOCHECK,win,ierr)
 #else
+    MARK_USED(win)
     CPABORT("mp_win_lock_all requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_lock_all @ "//routineN )
@@ -3295,6 +3382,7 @@ CONTAINS
 #if __MPI_VERSION > 2
     CALL mpi_win_unlock_all(win,ierr)
 #else
+    MARK_USED(win)
     CPABORT("mp_win_unlock_all requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_unlock_all @ "//routineN )

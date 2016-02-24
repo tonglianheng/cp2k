@@ -163,7 +163,9 @@ MODULE input_constants
 
   ! Pseudopotential type for Atom Code
   INTEGER, PARAMETER, PUBLIC               :: no_pseudo=0,&
-                                              gth_pseudo=1
+                                              gth_pseudo=1,&
+                                              upf_pseudo=2,&
+                                              ecp_pseudo=3
   ! Confinement type for Atom Code
   INTEGER, PARAMETER, PUBLIC               :: no_conf=0,&
                                               poly_conf=1,&
@@ -198,8 +200,8 @@ MODULE input_constants
                                               molecular_guess=10
 
   ! Projection formulas for the maximum overlap method
-  INTEGER, PARAMETER, PUBLIC               :: momproj_sum=0,&
-                                              momproj_norm=1
+  INTEGER, PARAMETER, PUBLIC               :: momproj_norm=0,&
+                                              momproj_sum=1
 
   INTEGER, PARAMETER, PUBLIC               :: almo_frz_none=0,&
                                               almo_frz_isolated=1,&
@@ -963,6 +965,9 @@ MODULE input_constants
                                               injmethod_evp    = 21,&
                                               injmethod_beyn   = 22,& 
                                               injsign_positive =  1,&
-                                              injsign_negative = -1
+                                              injsign_negative = -1,&
+                                              rlaxisint_GaussChebyshev = 31,&
+                                              rlaxisint_trapezoidal    = 32,&
+                                              rlaxisint_readfromfile   = 33
 
 END MODULE input_constants
