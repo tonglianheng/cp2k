@@ -73,11 +73,6 @@ CONTAINS
     TYPE(dimer_env_type), POINTER            :: dimer_env
     TYPE(section_vals_type), POINTER         :: print_section
 
-
-!BEG:DEBUG:LT:2016/03/02
-    INTEGER :: ii
-!END:DEBUG:LT:2016/03/02
-
     NULLIFY(dimer_env,logger, print_section)
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
@@ -101,31 +96,6 @@ CONTAINS
           IF (eval_analytical) THEN
              ! Compute energy, gradients and rotation vector for R1
              CALL cp_eval_at_ts_low(gopt_env, x, 1, dimer_env, calc_force, f1, dimer_env%rot%g1)
-
-!BEG:DEBUG:LT:2016/03/02
-             WRITE (100,*) "|LT dimer_env%nvec = "
-             DO ii = 1, SIZE(dimer_env%nvec)
-                WRITE (100,*) dimer_env%nvec(ii)
-             END DO
-!END:DEBUG:LT:2016/03/02
-
-!BEG:DEBUG:LT:2016/03/02
-             WRITE (100,*) "|LT dimer_env%rot%g1 = "
-             DO ii = 1, SIZE(dimer_env%rot%g1)
-                WRITE (100,*) dimer_env%rot%g1(ii)
-             END DO
-
-             WRITE (100,*) "|LT dimer_env%rot%g0 = "
-             DO ii = 1, SIZE(dimer_env%rot%g0)
-                WRITE (100,*) dimer_env%rot%g0(ii)
-             END DO
-
-             WRITE (100,*) "|LT dimer_env%rot%g1p = "
-             DO ii = 1, SIZE(dimer_env%rot%g1p)
-                WRITE (100,*) dimer_env%rot%g1p(ii)
-             END DO
-!END:DEBUG:LT:2016/03/02
-
           ELSE
              angle1 = dimer_env%rot%angle1
              angle2 = dimer_env%rot%angle2
@@ -151,15 +121,6 @@ CONTAINS
              WRITE(iw,'(A,F20.10)')"Rotational Force step (1,3): module:",norm
              WRITE(iw,'(3F15.9)')gradient
           END IF
-
-!BEG:DEBUG:LT:2016/03/02
-          WRITE (100,*) "|LT Rotational Force step (1,3): module:", norm
-          WRITE (100,*) "|LT gradient = "
-          DO ii = 1, SIZE(gradient)
-             WRITE (100,*) gradient(ii)
-          END DO
-!END:DEBUG:LT:2016/03/02
-
 
           ! Compute curvature and derivative of the curvature w.r.t. the rotational angle
           dimer_env%rot%curvature  = DOT_PRODUCT(dimer_env%rot%g1-dimer_env%rot%g0,dimer_env%nvec)/dimer_env%dr
@@ -189,14 +150,6 @@ CONTAINS
        ! Compute energy, gradients and rotation vector for R0
        CALL cp_eval_at_ts_low(gopt_env, x, 0, dimer_env, calc_force, f,  dimer_env%rot%g0)
 
-!BEG:DEBUG:LT:2016/03/02
-       WRITE (100,*) "|LT no_rot: dimer_env%rot%g0 = "
-       DO ii = 1, SIZE(dimer_env%rot%g0)
-          WRITE (100,*) dimer_env%rot%g0(ii)
-       END DO
-!END:DEBUG:LT:2016/03/02
-
-
        ! The dimer is rotated only when we are out of the translation line search
        IF (.NOT.gopt_env%do_line_search) THEN
           IF (debug_this_module.AND.(iw>0)) THEN
@@ -222,14 +175,6 @@ CONTAINS
           WRITE(iw,*)"final gradient:",gradient
           WRITE(iw,'(A,F20.10)')"norm gradient:",SQRT(DOT_PRODUCT(gradient,gradient))
        END IF
-
-!BEG:DEBUG:LT:2016/03/02
-       WRITE (100,*) "|LT no_rot gradient = "
-       DO ii = 1, SIZE(gradient)
-          WRITE (100,*) gradient(ii)
-       END DO
-!END:DEBUG:LT:2016/03/02
-
        IF (.NOT.gopt_env%do_line_search) THEN
           f =  SQRT(DOT_PRODUCT(gradient,gradient))
        ELSE

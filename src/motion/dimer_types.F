@@ -260,7 +260,7 @@ CONTAINS
   END SUBROUTINE dimer_env_release
 
   SUBROUTINE dimer_fixed_atom_control(vec, subsys)
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: vec
+    REAL(KIND=dp), DIMENSION(:)              :: vec
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_create', &
