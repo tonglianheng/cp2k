@@ -191,11 +191,10 @@ CONTAINS
 !> \param gradient ...
 !> \param print_section ...
 !> \par History
-!>      none
+!>      2016/03/02 [LTong] added fixed atom constraint for gradient
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-
-  SUBROUTINE  remove_rot_transl_component (gopt_env,gradient,print_section)
+  SUBROUTINE remove_rot_transl_component (gopt_env,gradient,print_section)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:)              :: gradient
     TYPE(section_vals_type), POINTER         :: print_section

@@ -11,21 +11,6 @@
 ! *****************************************************************************
 MODULE dimer_types
 
-  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-  USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_first_rotation_step
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: dp
-  USE parallel_rng_types,              ONLY: random_numbers
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
-                                             get_molecule_kind,&
-                                             molecule_kind_type
   USE cell_types,                      ONLY: use_perd_x,&
                                              use_perd_xy,&
                                              use_perd_xyz,&
@@ -33,6 +18,21 @@ MODULE dimer_types
                                              use_perd_y,&
                                              use_perd_yz,&
                                              use_perd_z
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_first_rotation_step
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
+  USE parallel_rng_types,              ONLY: random_numbers
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -104,7 +104,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param dimer_env ...
-!> \param natom ...
+!> \param subsys ...
 !> \param globenv ...
 !> \param dimer_section ...
 !> \par History
@@ -121,7 +121,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, isize, j, k, n_rep_val, &
-                                                unit_nr, natom
+                                                natom, unit_nr
     LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: norm, xval(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
@@ -259,19 +259,33 @@ CONTAINS
     END IF
   END SUBROUTINE dimer_env_release
 
+! *****************************************************************************
+!> \brief Set parts of a given array vec to zero according to fixed atom constraints.
+!>        When atoms are (partially) fixed then the relevant components of
+!>        nvec should be set to zero.  Furthermore, the relevent components
+!>        of the gradient in CG should also be set to zero.
+!> \param vec : vector to be modified
+!> \param subsys : subsys type object used by CP2k
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE dimer_fixed_atom_control(vec, subsys)
-    REAL(KIND=dp), DIMENSION(:)              :: vec
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vec
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_create', &
-         routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'dimer_fixed_atom_control', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ii, ikind, ind, iparticle, &
+                                                nfixed_atoms, nkinds
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), DIMENSION(:), POINTER :: fixd_list
-    INTEGER :: nkinds, ikind, ii, iparticle, ind, nfixed_atoms
 
     NULLIFY(molecule_kinds, molecule_kind, fixd_list)
 
