@@ -108,7 +108,7 @@ CONTAINS
 !> \param globenv ...
 !> \param dimer_section ...
 !> \par History
-!>      none
+!>      2016/03/03 [LTong] changed input natom to subsys
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
   SUBROUTINE dimer_env_create(dimer_env, subsys, globenv, dimer_section)
@@ -267,8 +267,8 @@ CONTAINS
 !> \param vec : vector to be modified
 !> \param subsys : subsys type object used by CP2k
 !> \par History
-!>      none
-!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+!>      2016/03/03 [LTong] created
+!> \author Lianheng Tong [LTong]
 ! *****************************************************************************
   SUBROUTINE dimer_fixed_atom_control(vec, subsys)
     REAL(KIND=dp), DIMENSION(:), &
