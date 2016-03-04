@@ -13,7 +13,7 @@ WFLAGS  = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
           -Wunused-but-set-variable -Wunused-variable\
           -Werror
 DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC -D__HAS_smm_dnn \
-           -D__parallel -D__BLACS -D__SCALAPACK -D__MPI_VERSION=3
+           -D__parallel -D__BLACS -D__SCALAPACK -D__MPI_VERSION=2
 FCFLAGS  = -O3 -g -march=native -ffree-form -ffree-line-length-none -ffast-math \
            $(DFLAGS) -I${FFTW3_INCLUDE} -I${OPENBLAS_INCLUDE} -I${LIBINT_INCLUDE} \
            -I${LIBXC_INCLUDE} -I${MPI_INCLUDE} $(WFLAGS)
