@@ -47,6 +47,7 @@ case "$with_openblas" in
                    PREFIX="${pkg_install_dir}" \
                    > make.serial.log 2>&1 \
             ) || ( \
+                make -j $NPROCS clean; \
                 make -j $NPROCS \
                      TARGET=NEHALEM \
                      USE_THREAD=0 \
